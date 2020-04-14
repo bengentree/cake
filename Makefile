@@ -13,7 +13,7 @@ help:
 binary:  ${CLUSTER_ENGINE_BINARY} ## Create CLI binary
 ${CLUSTER_ENGINE_BINARY}:	
 	mkdir -p bin/${CLUSTER_ENGINE_BINARY}
-	GOOS=${OSFLAG} GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/${CLUSTER_ENGINE_BINARY}/${CLUSTER_ENGINE_BINARY}-${OSFLAG} cmd/${CLUSTER_ENGINE_BINARY}/${CLUSTER_ENGINE_BINARY}.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/${CLUSTER_ENGINE_BINARY}/${CLUSTER_ENGINE_BINARY}-${OSFLAG} cmd/${CLUSTER_ENGINE_BINARY}/${CLUSTER_ENGINE_BINARY}.go
 
 .PHONY: c clean
 c: clean

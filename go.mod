@@ -3,10 +3,14 @@ module github.com/netapp/capv-bootstrap
 go 1.13
 
 require (
+	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/docker/docker v1.13.1
+	github.com/docker/go-connections v0.4.0
 	github.com/gookit/color v1.2.4
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/prometheus/common v0.9.1
+	github.com/rancher/go-rancher v0.1.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.7
 	github.com/spf13/viper v1.6.2
