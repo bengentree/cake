@@ -197,7 +197,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	//	return errors.New(fmt.Sprintf("Error waiting for container, code: %d, err: %s", code, err))
 	//}
 	// Forgive me, for I have sinned
-	time.Sleep(time.Minute)
+	time.Sleep(time.Minute * 2)
 
 	//args := []string{
 	//	"create",
@@ -343,7 +343,7 @@ func (c *MgmtCluster) InstallCAPV() error {
 
 	body, _ = json.Marshal(map[string]interface{}{
 		"name": "server-url",
-		"value": "https://localhost",
+		"value": "https://172.60.5.53",
 	})
 	req, err = http.NewRequest("PUT", "https://127.0.0.1/v3/settings/server-url", bytes.NewBuffer(body))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
