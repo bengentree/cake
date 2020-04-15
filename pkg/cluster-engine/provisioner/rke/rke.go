@@ -120,7 +120,7 @@ type MgmtCluster struct {
 			ArchiveLocation string `yaml:"ArchiveLocation"`
 		} `yaml:"Observability"`
 	} `yaml:"Configuration"`
-	token string
+	token      string
 	clusterURL string
 }
 
@@ -136,6 +136,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	ctx := context.Background()
 	imageName := "rancher/rancher"
 
+	// This call was not working for some reason... required canonical image format?
 	//_, err = cli.ImagePull(ctx, imageName, types.ImagePullOptions{})
 	//if err != nil {
 	//	return err
@@ -176,13 +177,13 @@ func (c MgmtCluster) CreateBootstrap() error {
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: imageName,
 		ExposedPorts: nat.PortSet{
-			"80/tcp": struct{}{},
+			"80/tcp":  struct{}{},
 			"443/tcp": struct{}{},
 		},
 	}, &container.HostConfig{
 		PortBindings: portBinding,
-		RestartPolicy:   container.RestartPolicy{
-			Name:              "unless-stopped",
+		RestartPolicy: container.RestartPolicy{
+			Name: "unless-stopped",
 		},
 	}, nil, "")
 	if err != nil {
@@ -194,31 +195,6 @@ func (c MgmtCluster) CreateBootstrap() error {
 		return err
 	}
 
-	//args := []string{
-	//	"create",
-	//	"cluster",
-	//}
-	//err = cmds.GenericExecute(nil, string(kind), args, nil)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//m.events <- Event{EventType: "progress", Event: "getting and writing bootstrap cluster kubeconfig to disk"}
-	//args = []string{
-	//	"get",
-	//	"kubeconfig",
-	//}
-	//c := cmds.NewCommandLine(nil, string(kind), args, nil)
-	//stdout, stderr, err := c.Program().Execute()
-	//if err != nil || string(stderr) != "" {
-	//	return fmt.Errorf("err: %v, stderr: %v", err, string(stderr))
-	//}
-	//
-	//err = writeToDisk(m.ClusterName, bootstrapKubeconfig, []byte(stdout), 0644)
-	//if err != nil {
-	//	return err
-	//}
-	//
 	//// TODO wait for cluster components to be running
 	// LOL - This command never completes, thanks Rancher :P
 	//code, err := cli.ContainerWait(ctx, resp.ID)
@@ -228,7 +204,6 @@ func (c MgmtCluster) CreateBootstrap() error {
 	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	// Forgive me, for I have sinned
 	time.Sleep(time.Minute * 2)
-	//time.Sleep(20 * time.Second)
 
 	return err
 }
@@ -261,11 +236,10 @@ func (c *MgmtCluster) InstallCAPV() error {
 	//# Set server-url
 	//curl -k -s 'https://127.0.0.1/v3/settings/server-url' -H 'Content-Type: application/json' -H "Authorization: Bearer $APIKEY" -X PUT --data-binary '{"name":"server-url","value":"https://your-rancher.com/"}'
 
-	//
 	body, _ := json.Marshal(map[string]interface{}{
 		"username": "admin",
 		"password": "admin",
-		"ttl": 0,
+		"ttl":      0,
 	})
 	req, err := http.NewRequest("POST", "https://localhost/v3-public/localProviders/local?action=login", bytes.NewBuffer(body))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
@@ -281,26 +255,12 @@ func (c *MgmtCluster) InstallCAPV() error {
 	c.token = result["token"]
 	log.Infof("Using token %s user: %s token: %s", result["token"], user, token)
 
-	//body, err = json.Marshal(map[string]string{
-	//	"currentPassword": "admin",
-	//	"newPassword": "solidfire",
-	//})
-	//if err != nil {
-	//	return err
-	//}
-	//req, err = http.NewRequest("POST", "https://localhost/v3/users?action=changepassword", bytes.NewBuffer(body))
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//req.Header.Add("x-api-csrf", "d1b2b5ebf8")
-	//resp, err = http.DefaultClient.Do(req)
-	//if err != nil {
-	//	return err
-	//}
-
+	/* The Rancher SDK was very disappointing. I was able to connect after setting auth
+	   but none of the schemas were there to make the API calls I needed. Hopefully we
+	   can get this working if we go to production
+	*/
 	opts := &rancher.ClientOpts{
-		Url: "https://localhost",
+		Url:       "https://localhost",
 		AccessKey: user,
 		SecretKey: token,
 	}
@@ -340,17 +300,15 @@ func (c *MgmtCluster) InstallCAPV() error {
 	//	cli.Opts.SecretKey = apiKey.SecretValue
 	//}
 
-
 	log.Infof("Using Access Key: %s", cli.Opts.AccessKey)
 
-
 	body, _ = json.Marshal(map[string]interface{}{
-		"name": "server-url",
-		"value": "https://172.60.5.61",
+		"name":  "server-url",
+		"value": "https://172.60.5.87",
 	})
 	req, err = http.NewRequest("PUT", "https://127.0.0.1/v3/settings/server-url", bytes.NewBuffer(body))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
-	req.Header.Add("Authorization", "Bearer "+ result["token"])
+	req.Header.Add("Authorization", "Bearer "+result["token"])
 	resp, err = http.DefaultClient.Do(req)
 	log.Info("Changed server URL")
 	log.Debugf("Changed server URL: %v+", resp)
@@ -403,7 +361,6 @@ func (c *MgmtCluster) CreatePermanent() error {
 	json.NewDecoder(resp.Body).Decode(&result)
 	cloudCredID := result["id"].(string)
 	log.Infof("Cloud cred ID: %v+", cloudCredID)
-
 
 	// POST https://localhost/v3/nodetemplate
 	b = []byte(`{
@@ -577,22 +534,22 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 	// POST - https://localhost/v3/nodepool
 	/*
-	{
-		"controlPlane": true,
-		"deleteNotReadyAfterSecs": 0,
-		"etcd": false,
-		"quantity": 1,
-		"worker": false,
-		"type": "nodePool",
-		"clusterId": "c-qtsbz",
-		"nodeTemplateId": "cattle-global-nt:nt-v5v22",
-		"hostnamePrefix": "rke-ctrl"
-	}
+		{
+			"controlPlane": true,
+			"deleteNotReadyAfterSecs": 0,
+			"etcd": false,
+			"quantity": 1,
+			"worker": false,
+			"type": "nodePool",
+			"clusterId": "c-qtsbz",
+			"nodeTemplateId": "cattle-global-nt:nt-v5v22",
+			"hostnamePrefix": "rke-ctrl"
+		}
 
-	{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":false,"quantity":2,"worker":true,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-worker"}
+		{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":false,"quantity":2,"worker":true,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-worker"}
 
-	{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":true,"quantity":1,"worker":false,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-etcd"}
-	 */
+		{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":true,"quantity":1,"worker":false,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-etcd"}
+	*/
 	err = c.createNodePools(clusterID, nodeTemplateID)
 	if err != nil {
 		return err
@@ -601,42 +558,6 @@ func (c *MgmtCluster) CreatePermanent() error {
 	c.events <- capv.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
 	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 }
-
-func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMins int) error {
-	timeout := time.After(time.Duration(timeoutInMins) * time.Minute)
-	tick := time.Tick(30 * time.Second)
-	cReceived := make(map[string]struct{})
-	for {
-		select {
-		case <-timeout:
-			return errors.New(fmt.Sprintf("timeout after %d minutes waiting for %s with condition %s=%s", timeoutInMins, resourceURL, key, val))
-		case <-tick:
-			resp, _ := c.makeHTTPRequest("GET", resourceURL, nil)
-			if resp != nil {
-				result := make(map[string]interface{})
-				err := json.NewDecoder(resp.Body).Decode(&result)
-				if err != nil {
-					log.Warnf(err.Error())
-				}
-				if conditions, ok := result["conditions"].([]interface{}); ok {
-					for _, c := range conditions {
-						cMap := c.(map[string]interface{})
-						condition := cMap[key].(string)
-						_, ok := cReceived[condition]; if !ok {
-							log.Infof("Received a new condition: %s", condition)
-							cReceived[condition] = struct{}{}
-						}
-						if condition == val {
-							return nil
-						}
-					}
-				}
-			}
-			log.Info("Waiting for resource...")
-		}
-	}
-}
-
 
 func (c MgmtCluster) CAPvPivot() error {
 	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
@@ -655,7 +576,7 @@ func (c MgmtCluster) CAPvPivot() error {
 		"username": null,
 		"password": null
 	}`)
-	resp, err := c.makeHTTPRequest("POST", "https://172.60.5.61/v3/catalog", b)
+	resp, err := c.makeHTTPRequest("POST", "https://172.60.5.87/v3/catalog", b)
 	if err != nil {
 		return err
 	}
@@ -707,7 +628,6 @@ func (c MgmtCluster) CAPvPivot() error {
 	}
 	log.Infof("Updated default namespace")
 
-
 	// POST https://172.60.5.53/v3/projects/c-88nwn:p-tjkqt/app
 	b = []byte(`{
 		"prune": false,
@@ -734,7 +654,7 @@ func (c MgmtCluster) CAPvPivot() error {
 	jsonEncoder.SetEscapeHTML(false)
 	jsonEncoder.Encode(reqJSON)
 
-	defaultProjectURL := fmt.Sprintf("https://172.60.5.61/v3/projects/%s", projectID)
+	defaultProjectURL := fmt.Sprintf("https://172.60.5.87/v3/projects/%s", projectID)
 	resp, err = c.makeHTTPRequest("POST", fmt.Sprintf("%s/app", defaultProjectURL), bf.Bytes())
 	if err != nil {
 		return err
@@ -746,7 +666,6 @@ func (c MgmtCluster) CAPvPivot() error {
 	rancherAppURL := links["self"].(string)
 	log.Infof("Rancher app URL: ", rancherAppURL)
 
-
 	c.events <- capv.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
 	return c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
 }
@@ -756,13 +675,49 @@ func (c *MgmtCluster) Events() chan interface{} {
 	return c.events
 }
 
+func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMins int) error {
+	timeout := time.After(time.Duration(timeoutInMins) * time.Minute)
+	tick := time.Tick(30 * time.Second)
+	cReceived := make(map[string]struct{})
+	for {
+		select {
+		case <-timeout:
+			return errors.New(fmt.Sprintf("timeout after %d minutes waiting for %s with condition %s=%s", timeoutInMins, resourceURL, key, val))
+		case <-tick:
+			resp, _ := c.makeHTTPRequest("GET", resourceURL, nil)
+			if resp != nil {
+				result := make(map[string]interface{})
+				err := json.NewDecoder(resp.Body).Decode(&result)
+				if err != nil {
+					log.Warnf(err.Error())
+				}
+				if conditions, ok := result["conditions"].([]interface{}); ok {
+					for _, c := range conditions {
+						cMap := c.(map[string]interface{})
+						condition := cMap[key].(string)
+						_, ok := cReceived[condition]
+						if !ok {
+							log.Infof("Received a new condition: %s", condition)
+							cReceived[condition] = struct{}{}
+						}
+						if condition == val {
+							return nil
+						}
+					}
+				}
+			}
+			log.Info("Waiting for resource...")
+		}
+	}
+}
+
 func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 	nodePools := []struct {
 		prefix string
-		count int
-		ctrl bool
+		count  int
+		ctrl   bool
 		worker bool
-		etcd bool
+		etcd   bool
 	}{
 		{"rke-ctrl", 1, true, false, false},
 		{"rke-worker", 2, false, true, false},
@@ -791,7 +746,7 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 		req, _ = http.NewRequest(method, url, nil)
 	}
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
-	req.Header.Add("Authorization", "Bearer "+ c.token)
+	req.Header.Add("Authorization", "Bearer "+c.token)
 	dump, err := httputil.DumpRequestOut(req, true)
 	if err != nil {
 		log.Fatal(err)
