@@ -124,6 +124,16 @@ type MgmtCluster struct {
 	clusterURL string
 }
 
+func (c MgmtCluster) InstallAddons() error {
+	log.Infof("TODO: install addons")
+	return nil
+}
+
+func (c MgmtCluster) RequiredCommands() []string {
+	log.Infof("TODO: provide required commands")
+	return nil
+}
+
 func (c MgmtCluster) CreateBootstrap() error {
 	var err error
 
@@ -208,7 +218,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	return err
 }
 
-func (c *MgmtCluster) InstallCAPV() error {
+func (c *MgmtCluster) InstallControlPlane() error {
 	c.events <- capv.Event{EventType: "progress", Event: "configure standalone rancher"}
 
 	// Remove hack
@@ -559,7 +569,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 }
 
-func (c MgmtCluster) CAPvPivot() error {
+func (c MgmtCluster) PivotControlPlane() error {
 	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
 

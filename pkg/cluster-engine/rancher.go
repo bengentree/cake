@@ -39,7 +39,7 @@ func runRKEProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		log.Fatalf("unable to decode into struct, %v", errJ)
 	}
 
-	go serveProgress(C.LogFile)
+	go serveProgress(C.LogFile, "")
 
 	start := time.Now()
 	log.Info("Welcome to RKE Mission Control")
@@ -88,7 +88,7 @@ func runRKEProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		"ControlPlaneMachineCount": controlPlaneMachineCount,
 		"WorkerMachineCount":       workerMachineCount,
 	}).Info("Installing CAPv into Bootstrap cluster...")
-	err = cluster.InstallCAPV()
+	err = cluster.InstallControlPlane()
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -104,7 +104,7 @@ func runRKEProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 	responseBody.Messages = append(responseBody.Messages, "Permanent management cluster created")
 
 	log.Info("Moving CAPv to permanent management cluster...")
-	err = cluster.CAPvPivot()
+	err = cluster.PivotControlPlane()
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
