@@ -15,12 +15,22 @@ import (
 // CreatePermanent creates the permanent CAPv management cluster
 func (m *MgmtCluster) CreatePermanent() error {
 	var err error
+	var capiConfig string
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	capiConfig := filepath.Join(home, ConfigDir, m.ClusterName, m.ClusterName+"-capi-config"+".yaml")
 	kubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
+	if m.Addons.Solidfire.Enable {
+		err = injectTridentPrereqs(m.ClusterName, m.StorageNetwork, kubeConfig, nil)
+		if err != nil {
+			return err
+		}
+		capiConfig = filepath.Join(home, ConfigDir, m.ClusterName, m.ClusterName+"-final"+".yaml")
+	} else {
+		capiConfig = filepath.Join(home, ConfigDir, m.ClusterName, m.ClusterName+"-base"+".yaml")
+	}
+
 	envs := map[string]string{
 		"KUBECONFIG": kubeConfig,
 	}

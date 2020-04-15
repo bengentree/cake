@@ -9,8 +9,8 @@ import (
 	"github.com/netapp/capv-bootstrap/pkg/cmds"
 )
 
-// InstallCAPV installs CAPv CRDs into the temporary bootstrap cluster
-func (m *MgmtCluster) InstallCAPV() error {
+// InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
+func (m *MgmtCluster) InstallControlPlane() error {
 	var err error
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -88,7 +88,7 @@ func (m *MgmtCluster) InstallCAPV() error {
 		return fmt.Errorf("err: %v, stderr: %v, cmd: %v %v", err, string(stderr), c.CommandName, c.Args)
 	}
 
-	err = writeToDisk(m.ClusterName, m.ClusterName+"-capi-config"+".yaml", []byte(stdout), 0644)
+	err = writeToDisk(m.ClusterName, m.ClusterName+"-base"+".yaml", []byte(stdout), 0644)
 	if err != nil {
 		return err
 	}

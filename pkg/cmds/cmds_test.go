@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -55,5 +56,33 @@ func TestCmdLinkedList(t *testing.T) {
 	if reflect.DeepEqual(exist, expectedExist) {
 		t.Errorf("got %v, want %v", exist, expectedExist)
 	}
+
+}
+
+func TestLinkedListRemove(t *testing.T) {
+	kubectl := NewCommandLine(nil, "ls", nil, nil)
+	clusterctl := NewCommandLine(nil, "pwd", nil, nil)
+	tridentctl := NewCommandLine(nil, "rm", nil, nil)
+	govc := NewCommandLine(nil, "cds", nil, nil)
+
+	root := ProvisionerCommands{Name: "capv required commands"}
+	root.AddCommand(kubectl.CommandName, kubectl)
+	root.AddCommand(clusterctl.CommandName, clusterctl)
+	root.AddCommand(tridentctl.CommandName, tridentctl)
+	root.AddCommand(govc.CommandName, govc)
+
+	fmt.Printf("before: %v\n", strings.Join(root.GetAll(), " "))
+	err := root.Remove("cds")
+	if err != nil {
+		fmt.Printf("err: %v\n", err.Error())
+	}
+	fmt.Printf("after: %v\n", strings.Join(root.GetAll(), " "))
+	err = root.Remove("pwd")
+	if err != nil {
+		fmt.Printf("err: %v\n", err.Error())
+	}
+	fmt.Printf("after: %v\n", strings.Join(root.GetAll(), " "))
+
+	t.Fail()
 
 }

@@ -8,8 +8,8 @@ import (
 	"github.com/netapp/capv-bootstrap/pkg/cmds"
 )
 
-// CAPvPivot moves CAPv from the bootstrap cluster to the permanent management cluster
-func (m *MgmtCluster) CAPvPivot() error {
+// PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster
+func (m *MgmtCluster) PivotControlPlane() error {
 	var err error
 
 	home, err := os.UserHomeDir()
@@ -64,7 +64,21 @@ func (m *MgmtCluster) CAPvPivot() error {
 		return err
 	}
 
-	time.Sleep(60 * time.Second)
+	timeout := 5 * time.Minute
+	grepString := "true"
+	envs = map[string]string{
+		"KUBECONFIG": bootstrapKubeConfig,
+	}
+	args = []string{
+		"get",
+		"KubeadmControlPlane",
+		"--output=jsonpath='{.items[0].status.ready}'",
+	}
+	err = kubeRetry(envs, args, timeout, grepString, 1, nil, m.events)
+	if err != nil {
+		return err
+	}
+
 	envs = map[string]string{
 		"KUBECONFIG": bootstrapKubeConfig,
 	}

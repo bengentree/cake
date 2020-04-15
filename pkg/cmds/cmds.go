@@ -246,3 +246,30 @@ func (c *ProvisionerCommands) Exist() []string {
 
 	return result
 }
+
+// Remove removes a node
+func (c *ProvisionerCommands) Remove(t string) error {
+	var previous *ExternalCommand
+	node := c.head
+	if node != nil {
+		if node.Name == t {
+			c.head = node.next
+			return nil
+		}
+	}
+	for {
+		if node == nil {
+			return fmt.Errorf("Not found")
+		}
+
+		if node.Name == t {
+			break
+		}
+		previous = node
+		node = node.next
+
+	}
+	previous.next = node.next
+
+	return nil
+}

@@ -56,9 +56,9 @@ func initConfig() {
 	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		log.Infof("Using config file: %v", viper.ConfigFileUsed())
 	} else {
-		fmt.Printf("error reading config file: %v\n", err.Error())
+		log.Fatalf("error reading config file: %v\n", err.Error())
 	}
 }
 
