@@ -1,7 +1,7 @@
 package capv
 
 const (
-	configDir             = ".cluster-engine/"
+	ConfigDir             = ".cluster-engine/"
 	vsphereWorkloadFolder = "workloads"
 	vsphereBaseFolder     = "nks"
 	bootstrapKubeconfig   = "bootstrap.kubeconfig"

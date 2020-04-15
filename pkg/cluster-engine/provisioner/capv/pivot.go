@@ -16,9 +16,9 @@ func (m *MgmtCluster) CAPvPivot() error {
 	if err != nil {
 		return err
 	}
-	secretSpecLocation := filepath.Join(home, configDir, m.ClusterName, VsphereCredsSecret.Name)
-	permanentKubeConfig := filepath.Join(home, configDir, m.ClusterName, "kubeconfig")
-	bootstrapKubeConfig := filepath.Join(home, configDir, m.ClusterName, bootstrapKubeconfig)
+	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, VsphereCredsSecret.Name)
+	permanentKubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, "kubeconfig")
+	bootstrapKubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
 	envs := map[string]string{
 		"KUBECONFIG": permanentKubeConfig,
 	}

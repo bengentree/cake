@@ -16,7 +16,7 @@ func (m *MgmtCluster) InstallCAPV() error {
 	if err != nil {
 		return err
 	}
-	secretSpecLocation := filepath.Join(home, configDir, m.ClusterName, VsphereCredsSecret.Name)
+	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, VsphereCredsSecret.Name)
 
 	secretSpecContents := fmt.Sprintf(
 		VsphereCredsSecret.Contents,
@@ -29,7 +29,7 @@ func (m *MgmtCluster) InstallCAPV() error {
 	}
 	time.Sleep(10 * time.Second)
 
-	kubeConfig := filepath.Join(home, configDir, m.ClusterName, bootstrapKubeconfig)
+	kubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
 	envs := map[string]string{
 		"KUBECONFIG": kubeConfig,
 	}

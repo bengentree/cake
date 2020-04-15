@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/capv-bootstrap/pkg/cluster-engine/provisioner/capv"
 
 	log "github.com/sirupsen/logrus"
@@ -41,19 +43,27 @@ func getResponseData() progress {
 	return *responseBody
 }
 
-func serveProgress(logfile string) {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+func serveProgress(logfile string, kubeconfig string) {
+	http.HandleFunc("/progress", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(responseBody)
 	})
 	http.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
 		logs, _ := ioutil.ReadFile(logfile)
 		fmt.Fprintf(w, string(logs))
 	})
+	http.HandleFunc("/kubeconfig", func(w http.ResponseWriter, r *http.Request) {
+		kconfig, _ := ioutil.ReadFile(kubeconfig)
+		if len(kconfig) == 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		fmt.Fprintf(w, string(kconfig))
+	})
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
 func runCapvProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 
+	clusterName := "capv-mgmt-cluster"
 	exist := capv.RequiredCommands.Exist()
 	if exist != nil {
 		log.Fatalf("ERROR: the following commands were not found in $PATH: [%v]\n", strings.Join(exist, ", "))
@@ -66,7 +76,12 @@ func runCapvProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		log.Fatalf("unable to decode into struct, %v", errJ)
 	}
 
-	go serveProgress(C.LogFile)
+	home, errH := homedir.Dir()
+	if errH != nil {
+		log.Fatalf(errH.Error())
+	}
+	kubeconfigLocation := filepath.Join(home, capv.ConfigDir, clusterName, "kubeconfig")
+	go serveProgress(C.LogFile, kubeconfigLocation)
 
 	start := time.Now()
 	log.Info("Welcome to CAPV Mission Control")
@@ -74,7 +89,6 @@ func runCapvProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 	//cpmCount := strconv.Itoa(controlPlaneMachineCount)
 	//nmCount := strconv.Itoa(workerMachineCount)
 
-	clusterName := "capv-mgmt-cluster"
 	log.WithFields(log.Fields{
 		"ClusterName":              clusterName,
 		"ControlPlaneMachineCount": controlPlaneMachineCount,

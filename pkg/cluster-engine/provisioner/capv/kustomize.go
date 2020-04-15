@@ -46,7 +46,7 @@ func kubectlKustomize(clusterName, storageNetwork, kubeconfigLocation string, ct
 	if err != nil {
 		return err
 	}
-	loc := filepath.Join(home, configDir, clusterName)
+	loc := filepath.Join(home, ConfigDir, clusterName)
 	args := []string{"kustomize", loc}
 
 	c := cmds.NewCommandLine(envs, string(kubectl), args, ctx)

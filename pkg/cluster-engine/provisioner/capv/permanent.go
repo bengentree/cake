@@ -19,8 +19,8 @@ func (m *MgmtCluster) CreatePermanent() error {
 	if err != nil {
 		return err
 	}
-	capiConfig := filepath.Join(home, configDir, m.ClusterName, m.ClusterName+"-capi-config"+".yaml")
-	kubeConfig := filepath.Join(home, configDir, m.ClusterName, bootstrapKubeconfig)
+	capiConfig := filepath.Join(home, ConfigDir, m.ClusterName, m.ClusterName+"-capi-config"+".yaml")
+	kubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
 	envs := map[string]string{
 		"KUBECONFIG": kubeConfig,
 	}
@@ -74,7 +74,7 @@ func (m *MgmtCluster) CreatePermanent() error {
 	}
 
 	// apply cni
-	permanentKubeconfig := filepath.Join(home, configDir, m.ClusterName, "kubeconfig")
+	permanentKubeconfig := filepath.Join(home, ConfigDir, m.ClusterName, "kubeconfig")
 	envs = map[string]string{
 		"KUBECONFIG": permanentKubeconfig,
 	}
