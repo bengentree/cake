@@ -659,7 +659,7 @@ func (c MgmtCluster) CAPvPivot() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Added rancher helm chart: %v+", resp)
+	log.Info("Added rancher helm chart")
 	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
 
@@ -668,7 +668,7 @@ func (c MgmtCluster) CAPvPivot() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Got all projects: %v+", resp)
+	log.Info("Got all projects")
 	result := make(map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
@@ -692,7 +692,7 @@ func (c MgmtCluster) CAPvPivot() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Got default namespace: %v+", resp)
+	log.Infof("Got default namespace")
 	result = make(map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
@@ -705,7 +705,7 @@ func (c MgmtCluster) CAPvPivot() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Updated default namespace: %v+", resp)
+	log.Infof("Updated default namespace")
 
 
 	// POST https://172.60.5.53/v3/projects/c-88nwn:p-tjkqt/app
@@ -739,7 +739,7 @@ func (c MgmtCluster) CAPvPivot() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Deployed rancher server via helm: %v+", resp)
+	log.Infof("Deployed rancher server via helm")
 	result = make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&result)
 	links := result["links"].(map[string]interface{})
@@ -770,11 +770,11 @@ func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 	}
 	for _, np := range nodePools {
 		req := createNodePoolReq(clusterID, nodeTemplateID, np.prefix, np.count, np.ctrl, np.worker, np.etcd)
-		resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/nodepool", req)
+		_, err := c.makeHTTPRequest("POST", "https://localhost/v3/nodepool", req)
 		if err != nil {
 			return err
 		}
-		log.Infof("Created node pool: %v+", resp)
+		log.Info("Created node pool: ", np.prefix)
 	}
 	return nil
 }
@@ -786,7 +786,6 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 		if !ok {
 			body, _ = json.Marshal(payload)
 		}
-		log.Infof("body: %q", body)
 		req, _ = http.NewRequest(method, url, bytes.NewReader(body))
 	} else {
 		req, _ = http.NewRequest(method, url, nil)
@@ -797,7 +796,7 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("HTTP request: %q", dump)
+	log.Debugf("HTTP request: %q", dump)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return resp, err
@@ -808,7 +807,7 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 		return resp, err
 	}
 
-	log.Infof("HTTP response: %q", dump)
+	log.Debugf("HTTP response: %q", dump)
 	return resp, err
 }
 
