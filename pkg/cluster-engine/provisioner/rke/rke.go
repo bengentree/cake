@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -120,12 +121,13 @@ type MgmtCluster struct {
 		} `yaml:"Observability"`
 	} `yaml:"Configuration"`
 	token string
+	clusterURL string
 }
 
 func (c MgmtCluster) CreateBootstrap() error {
 	var err error
 
-	c.events <- capv.Event{EventType: "progress", Event: "docker run rancher"}
+	c.events <- capv.Event{EventType: "progress", Event: "docker pull rancher"}
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return err
@@ -187,17 +189,10 @@ func (c MgmtCluster) CreateBootstrap() error {
 		return err
 	}
 
+	c.events <- capv.Event{EventType: "progress", Event: "docker run rancher"}
 	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
-
-	// LOL - This command never completes, thanks Rancher :P
-	//code, err := cli.ContainerWait(ctx, resp.ID)
-	//if err != nil || code > 0 {
-	//	return errors.New(fmt.Sprintf("Error waiting for container, code: %d, err: %s", code, err))
-	//}
-	// Forgive me, for I have sinned
-	time.Sleep(time.Minute * 2)
 
 	//args := []string{
 	//	"create",
@@ -225,7 +220,14 @@ func (c MgmtCluster) CreateBootstrap() error {
 	//}
 	//
 	//// TODO wait for cluster components to be running
-	//m.events <- Event{EventType: "progress", Event: "sleeping 20 seconds, need to fix this"}
+	// LOL - This command never completes, thanks Rancher :P
+	//code, err := cli.ContainerWait(ctx, resp.ID)
+	//if err != nil || code > 0 {
+	//	return errors.New(fmt.Sprintf("Error waiting for container, code: %d, err: %s", code, err))
+	//}
+	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+	// Forgive me, for I have sinned
+	time.Sleep(time.Minute * 2)
 	//time.Sleep(20 * time.Second)
 
 	return err
@@ -268,7 +270,8 @@ func (c *MgmtCluster) InstallCAPV() error {
 	req, err := http.NewRequest("POST", "https://localhost/v3-public/localProviders/local?action=login", bytes.NewBuffer(body))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
 	resp, err := http.DefaultClient.Do(req)
-	log.Infof("Enabled local login: %v+", resp)
+	log.Infof("Enabled local login")
+	log.Debugf("Enabled local login: %v+", resp)
 
 	var result map[string]string
 	json.NewDecoder(resp.Body).Decode(&result)
@@ -312,7 +315,7 @@ func (c *MgmtCluster) InstallCAPV() error {
 	for k := range cli.Types {
 		keys = append(keys, k)
 	}
-	log.Infof("Schema Types: %v", keys)
+	log.Debugf("Schema Types: %v", keys)
 
 	// https://github.com/cloudnautique/rbs-sandbox/blob/b1c3236490d16ba82ea4e1b5849bdcb1c913c292/rancher/rancherserver.go
 	//if opts.AccessKey == "" || opts.SecretKey == "" {
@@ -343,13 +346,14 @@ func (c *MgmtCluster) InstallCAPV() error {
 
 	body, _ = json.Marshal(map[string]interface{}{
 		"name": "server-url",
-		"value": "https://172.60.5.53",
+		"value": "https://172.60.5.61",
 	})
 	req, err = http.NewRequest("PUT", "https://127.0.0.1/v3/settings/server-url", bytes.NewBuffer(body))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
 	req.Header.Add("Authorization", "Bearer "+ result["token"])
 	resp, err = http.DefaultClient.Do(req)
-	log.Infof("Changed server URL: %v+", resp)
+	log.Info("Changed server URL")
+	log.Debugf("Changed server URL: %v+", resp)
 
 	// Ayaye
 	//setting, err := cli.Setting.ById("server-url")
@@ -375,7 +379,7 @@ func (c *MgmtCluster) InstallCAPV() error {
 	return nil
 }
 
-func (c MgmtCluster) CreatePermanent() error {
+func (c *MgmtCluster) CreatePermanent() error {
 	c.events <- capv.Event{EventType: "progress", Event: "configure RKE management cluster"}
 
 	// POST https://localhost/v3/cloudcredential
@@ -390,12 +394,11 @@ func (c MgmtCluster) CreatePermanent() error {
 		},
 		"name": "rke-bootstrap"
 	}`)
-	log.Infof("byte body: %q", b)
 	resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/cloudcredential", b)
 	if err != nil {
 		return err
 	}
-	log.Infof("Created vsphere cloud cred: %v+", resp)
+	log.Info("Created vsphere cloud cred")
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
 	cloudCredID := result["id"].(string)
@@ -455,12 +458,11 @@ func (c MgmtCluster) CreatePermanent() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Created node template: %v+", resp)
+	log.Info("Created node template")
 	respJSON := make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&respJSON)
 	nodeTemplateID := respJSON["id"].(string)
 	log.Infof("Node template ID: %v+", nodeTemplateID)
-
 
 	// POST https://localhost/v3/cluster?_replace=true
 	b = []byte(`{
@@ -565,10 +567,12 @@ func (c MgmtCluster) CreatePermanent() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Created cluster: %v+", resp)
+	log.Infof("Created cluster")
 	result = make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&result)
 	clusterID := result["id"].(string)
+	links := result["links"].(map[string]interface{})
+	c.clusterURL = links["self"].(string)
 	log.Infof("Cluster ID: %v+", clusterID)
 
 	// POST - https://localhost/v3/nodepool
@@ -589,12 +593,162 @@ func (c MgmtCluster) CreatePermanent() error {
 
 	{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":true,"quantity":1,"worker":false,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-etcd"}
 	 */
-	return c.createNodePools(clusterID, nodeTemplateID)
+	err = c.createNodePools(clusterID, nodeTemplateID)
+	if err != nil {
+		return err
+	}
+
+	c.events <- capv.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
+	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
+}
+
+func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMins int) error {
+	timeout := time.After(time.Duration(timeoutInMins) * time.Minute)
+	tick := time.Tick(30 * time.Second)
+	cReceived := make(map[string]struct{})
+	for {
+		select {
+		case <-timeout:
+			return errors.New(fmt.Sprintf("timeout after %d minutes waiting for %s with condition %s=%s", timeoutInMins, resourceURL, key, val))
+		case <-tick:
+			resp, _ := c.makeHTTPRequest("GET", resourceURL, nil)
+			if resp != nil {
+				result := make(map[string]interface{})
+				err := json.NewDecoder(resp.Body).Decode(&result)
+				if err != nil {
+					log.Warnf(err.Error())
+				}
+				if conditions, ok := result["conditions"].([]interface{}); ok {
+					for _, c := range conditions {
+						cMap := c.(map[string]interface{})
+						condition := cMap[key].(string)
+						_, ok := cReceived[condition]; if !ok {
+							log.Infof("Received a new condition: %s", condition)
+							cReceived[condition] = struct{}{}
+						}
+						if condition == val {
+							return nil
+						}
+					}
+				}
+			}
+			log.Info("Waiting for resource...")
+		}
+	}
 }
 
 
 func (c MgmtCluster) CAPvPivot() error {
-	return nil
+	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+	time.Sleep(time.Minute * 2)
+
+	c.events <- capv.Event{EventType: "progress", Event: "install production rancher server"}
+
+	// POST https://172.60.5.53/v3/catalog
+	b := []byte(`{
+		"type": "catalog",
+		"kind": "helm",
+		"branch": "master",
+		"helmVersion": "rancher-helm",
+		"name": "rancher-latest",
+		"url": "https://releases.rancher.com/server-charts/latest",
+		"username": null,
+		"password": null
+	}`)
+	resp, err := c.makeHTTPRequest("POST", "https://172.60.5.61/v3/catalog", b)
+	if err != nil {
+		return err
+	}
+	log.Infof("Added rancher helm chart: %v+", resp)
+	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+	time.Sleep(time.Minute * 2)
+
+	var projectID string
+	resp, err = c.makeHTTPRequest("GET", fmt.Sprintf("%s/projects", c.clusterURL), nil)
+	if err != nil {
+		return err
+	}
+	log.Infof("Got all projects: %v+", resp)
+	result := make(map[string]interface{})
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return err
+	}
+	if projects, ok := result["data"].([]interface{}); ok {
+		for _, p := range projects {
+			project := p.(map[string]interface{})
+			if project["name"] == "Default" {
+				projectID = project["id"].(string)
+				break
+			}
+		}
+	}
+	log.Infof("Got default project ID: %s", projectID)
+
+	projSplit := strings.Split(projectID, ":")
+	pID := projSplit[1]
+
+	resp, err = c.makeHTTPRequest("GET", fmt.Sprintf("%s/namespaces/default", c.clusterURL), nil)
+	if err != nil {
+		return err
+	}
+	log.Infof("Got default namespace: %v+", resp)
+	result = make(map[string]interface{})
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return err
+	}
+	labels := result["labels"].(map[string]interface{})
+	labels["field.cattle.io/projectId"] = pID
+	result["projectId"] = projectID
+	resp, err = c.makeHTTPRequest("PUT", fmt.Sprintf("%s/namespaces/default", c.clusterURL), result)
+	if err != nil {
+		return err
+	}
+	log.Infof("Updated default namespace: %v+", resp)
+
+
+	// POST https://172.60.5.53/v3/projects/c-88nwn:p-tjkqt/app
+	b = []byte(`{
+		"prune": false,
+		"timeout": 300,
+		"wait": false,
+		"type": "app",
+		"name": "rancher",
+		"answers": {
+			"tls": "external"
+		},
+		"targetNamespace": "default",
+		"externalId": "catalog://?catalog=rancher-latest&template=rancher&version=2.4.2",
+		"projectId": "c-88nwn:p-tjkqt",
+		"valuesYaml": ""
+	}`)
+	reqJSON := make(map[string]interface{})
+	json.Unmarshal(b, &reqJSON)
+	reqJSON["projectId"] = projectID
+
+	// This is needed to not escape the HTML in the externalId field
+	//"message":"catalogtemplateversions.management.cattle.io \"rancher-latest-rancher-2.4.2\" not found"
+	bf := bytes.NewBuffer([]byte{})
+	jsonEncoder := json.NewEncoder(bf)
+	jsonEncoder.SetEscapeHTML(false)
+	jsonEncoder.Encode(reqJSON)
+
+	defaultProjectURL := fmt.Sprintf("https://172.60.5.61/v3/projects/%s", projectID)
+	resp, err = c.makeHTTPRequest("POST", fmt.Sprintf("%s/app", defaultProjectURL), bf.Bytes())
+	if err != nil {
+		return err
+	}
+	log.Infof("Deployed rancher server via helm: %v+", resp)
+	result = make(map[string]interface{})
+	json.NewDecoder(resp.Body).Decode(&result)
+	links := result["links"].(map[string]interface{})
+	rancherAppURL := links["self"].(string)
+	log.Infof("Rancher app URL: ", rancherAppURL)
+
+
+	c.events <- capv.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
+	return c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
 }
 
 // Events returns the channel of progress messages
@@ -626,12 +780,17 @@ func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 }
 
 func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*http.Response, error) {
-	body, ok := payload.([]byte)
-	if !ok {
-		body, _ = json.Marshal(payload)
+	var req *http.Request
+	if payload != nil {
+		body, ok := payload.([]byte)
+		if !ok {
+			body, _ = json.Marshal(payload)
+		}
+		log.Infof("body: %q", body)
+		req, _ = http.NewRequest(method, url, bytes.NewReader(body))
+	} else {
+		req, _ = http.NewRequest(method, url, nil)
 	}
-	log.Infof("body: %q", body)
-	req, _ := http.NewRequest(method, url, bytes.NewReader(body))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
 	req.Header.Add("Authorization", "Bearer "+ c.token)
 	dump, err := httputil.DumpRequestOut(req, true)
