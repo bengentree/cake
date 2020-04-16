@@ -15,7 +15,8 @@ import (
 	"github.com/netapp/capv-bootstrap/pkg/cluster-engine/provisioner/capv"
 	"github.com/netapp/capv-bootstrap/pkg/cmds"
 	"github.com/prometheus/common/log"
-	rancher "github.com/rancher/go-rancher/client"
+	"github.com/rancher/norman/clientbase"
+	rancher "github.com/rancher/types/client/management/v3public"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -233,49 +234,61 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	}
 
 	// https://forums.rancher.com/t/automating-rancher-2-x-installation-and-configuration/11454/2
-	//# Login token good for 1 minute
-	//LOGINTOKEN=`curl -k -s 'https://127.0.0.1/v3-public/localProviders/local?action=login' -H 'content-type: application/json' --data-binary '{"username":"admin","password":"admin","ttl":60000}' | jq -r .token`
+	//# Login tokenResp good for 1 minute
+	//LOGINTOKEN=`curl -k -s 'https://127.0.0.1/v3-public/localProviders/local?action=login' -H 'content-type: application/json' --data-binary '{"username":"admin","password":"admin","ttl":60000}' | jq -r .tokenResp`
 	//
 	//# Change password
 	//curl -k -s 'https://127.0.0.1/v3/users?action=changepassword' -H 'Content-Type: application/json' -H "Authorization: Bearer $LOGINTOKEN" --data-binary '{"currentPassword":"admin","newPassword":"something better"}'
 	//
 	//# Create API key good forever
-	//APIKEY=`curl -k -s 'https://127.0.0.1/v3/token' -H 'Content-Type: application/json' -H "Authorization: Bearer $LOGINTOKEN" --data-binary '{"type":"token","description":"for scripts and stuff"}' | jq -r .token`
+	//APIKEY=`curl -k -s 'https://127.0.0.1/v3/token' -H 'Content-Type: application/json' -H "Authorization: Bearer $LOGINTOKEN" --data-binary '{"type":"tokenResp","description":"for scripts and stuff"}' | jq -r .tokenResp`
 	//echo "API Key: ${APIKEY}"
 	//
 	//# Set server-url
 	//curl -k -s 'https://127.0.0.1/v3/settings/server-url' -H 'Content-Type: application/json' -H "Authorization: Bearer $APIKEY" -X PUT --data-binary '{"name":"server-url","value":"https://your-rancher.com/"}'
 
-	body, _ := json.Marshal(map[string]interface{}{
-		"username": "admin",
-		"password": "admin",
-		"ttl":      0,
-	})
-	req, err := http.NewRequest("POST", "https://localhost/v3-public/localProviders/local?action=login", bytes.NewBuffer(body))
+	//body, _ := json.Marshal(map[string]interface{}{
+	//	"username": "admin",
+	//	"password": "admin",
+	//	"ttl":      0,
+	//})
+
+	body := rancher.BasicLogin{
+		Password:  "admin",
+		TTLMillis: 0,
+		Username:  "admin",
+	}
+	jsonBody, err := json.Marshal(body)
+	req, _ := http.NewRequest("POST", "https://localhost/v3-public/localProviders/local?action=login", bytes.NewBuffer(jsonBody))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
-	resp, err := http.DefaultClient.Do(req)
+	resp, _ := http.DefaultClient.Do(req)
 	log.Infof("Enabled local login")
 	log.Debugf("Enabled local login: %v+", resp)
 
-	var result map[string]string
-	json.NewDecoder(resp.Body).Decode(&result)
-	s := strings.Split(result["token"], ":")
-	user := s[0]
-	token := s[1]
-	c.token = result["token"]
-	log.Infof("Using token %s user: %s token: %s", result["token"], user, token)
+	var tokenResp rancher.Token
+	err = json.NewDecoder(resp.Body).Decode(&tokenResp)
+	if err != nil {
+		return errors.New("Unable to decode tokenResp: " + err.Error())
+	}
+	user := tokenResp.Name
+	token := strings.TrimPrefix(tokenResp.Token, user+":")
+	c.token = tokenResp.Token
+	log.Infof("Using token %s user: %s secret: %s", c.token, user, token)
 
 	/* The Rancher SDK was very disappointing. I was able to connect after setting auth
 	   but none of the schemas were there to make the API calls I needed. Hopefully we
 	   can get this working if we go to production
 	*/
-	opts := &rancher.ClientOpts{
-		Url:       "https://localhost",
-		AccessKey: user,
-		SecretKey: token,
-	}
+	//opts := &rancher.ClientOpts{
+	//	Url:       "https://localhost",
+	//	AccessKey: user,
+	//	SecretKey: tokenResp,
+	//}
 
-	cli, err := rancher.NewRancherClient(opts)
+	cli, err := rancher.NewClient(&clientbase.ClientOpts{
+		URL:      "https://localhost",
+		TokenKey: c.token,
+	})
 	if err != nil {
 		return errors.New("Unable to create rancher client: " + err.Error())
 	}
@@ -312,14 +325,14 @@ func (c *MgmtCluster) InstallControlPlane() error {
 
 	log.Infof("Using Access Key: %s", cli.Opts.AccessKey)
 
-	body, _ = json.Marshal(map[string]interface{}{
+	jsonBody, _ = json.Marshal(map[string]interface{}{
 		"name":  "server-url",
 		"value": "https://172.60.5.87",
 	})
-	req, err = http.NewRequest("PUT", "https://127.0.0.1/v3/settings/server-url", bytes.NewBuffer(body))
+	req, _ = http.NewRequest("PUT", "https://127.0.0.1/v3/settings/server-url", bytes.NewBuffer(jsonBody))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
-	req.Header.Add("Authorization", "Bearer "+result["token"])
-	resp, err = http.DefaultClient.Do(req)
+	req.Header.Add("Authorization", "Bearer "+c.token)
+	resp, _ = http.DefaultClient.Do(req)
 	log.Info("Changed server URL")
 	log.Debugf("Changed server URL: %v+", resp)
 
