@@ -1,11 +1,9 @@
 package capv
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -50,40 +48,6 @@ func TestExec(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	// TODO add tests here
-}
-
-func TestGetAndOrExtractArchive(t *testing.T) {
-	path, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	fileLoc := filepath.Join(path, "testdata/test_data.tar.gz")
-	tests := []struct {
-		name       string
-		archiveLoc string
-	}{
-		{"url", "https://github.com/kubernetes/kubernetes/releases/download/v1.18.1/kubernetes.tar.gz"},
-		{"file location", fileLoc},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			name := strings.Replace(tt.name, " ", "_", -1) + "_test_"
-			dir, err := ioutil.TempDir("/tmp", name)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			defer os.RemoveAll(dir)
-			targetDir, err := getAndOrExtractArchive(tt.archiveLoc, dir)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-			// TODO add some actual tests
-			fmt.Println(targetDir)
-		})
-	}
-
 }
 
 const baseYaml = `apiVersion: cluster.x-k8s.io/v1alpha3

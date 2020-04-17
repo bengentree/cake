@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cmds"
 
 	v1 "k8s.io/api/core/v1"
 )

@@ -3,8 +3,8 @@ package capv
 import (
 	"os"
 
-	"github.com/netapp/capv-bootstrap/pkg/cluster-engine/provisioner"
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cluster-engine/provisioner"
+	"github.com/netapp/cake/pkg/cmds"
 )
 
 // NewMgmtCluster creates a new cluster interface with a full config from the client

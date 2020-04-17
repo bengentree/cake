@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cmds"
 )
 
 // PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster

@@ -83,6 +83,4 @@ func TestLinkedListRemove(t *testing.T) {
 	}
 	fmt.Printf("after: %v\n", strings.Join(root.GetAll(), " "))
 
-	t.Fail()
-
 }

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cmds"
 )
 
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
@@ -57,7 +57,7 @@ func (m *MgmtCluster) InstallControlPlane() error {
 		"VSPHERE_HAPROXY_TEMPLATE":   m.LoadBalancerTemplate,
 		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSHAuthorizedKey,
 		"KUBECONFIG":                 kubeConfig,
-		"GITHUB_TOKEN":               "da4736762b7a0fd66db4fba10e6e001f7bb9ba65",
+		"GITHUB_TOKEN":               "",
 	}
 	args = []string{
 		"init",

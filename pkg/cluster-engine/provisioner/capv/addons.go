@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cmds"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -39,7 +39,7 @@ func installObservability(m *MgmtCluster) error {
 	m.events <- Event{EventType: "progress", Event: "installing the observability addon"}
 	var err error
 
-	//targetDir, err := getAndOrExtractArchive(m)
+	//targetDir, err := extractLocalArchive(m, dir)
 	/*
 		check if there is a default storage class, if not install longhorn
 		kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml

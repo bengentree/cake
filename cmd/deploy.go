@@ -1,4 +1,4 @@
-package clusterengine
+package cmd
 
 import (
 	"encoding/json"
@@ -10,15 +10,26 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/netapp/capv-bootstrap/pkg/cluster-engine/provisioner/capv"
+	"github.com/netapp/cake/pkg/cluster-engine/provisioner/capv"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var capvCmd = &cobra.Command{
-	Use:   "capv",
+var (
+	logLevel string
+	//cfgFile                         string
+	controlPlaneMachineCount        int
+	workerMachineCount              int
+	controlPlaneMachineCountDefault = 1
+	workerMachineCountDefault       = 2
+	logLevelDefault                 = "info"
+	appName                         = "cluster-engine"
+)
+
+var capvDeployCmd = &cobra.Command{
+	Use:   "capv-deploy",
 	Short: "Launch Cluster API Provider-vSphere (CAPV) Management Cluster",
 	Long:  `Launch Cluster API Provider-vSphere (CAPV) Management Cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -34,7 +45,7 @@ type progress struct {
 }
 
 func init() {
-	rootCmd.AddCommand(capvCmd)
+	rootCmd.AddCommand(capvDeployCmd)
 	responseBody = new(progress)
 	responseBody.Messages = []string{}
 }

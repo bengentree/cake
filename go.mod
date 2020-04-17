@@ -1,6 +1,6 @@
-module github.com/netapp/capv-bootstrap
+module github.com/netapp/cake
 
-go 1.13
+go 1.14
 
 replace (
 	k8s.io/api => k8s.io/api v0.17.2
@@ -15,6 +15,10 @@ require (
 	github.com/gookit/color v1.2.4
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/pkg/errors v0.9.1
+	github.com/sirupsen/logrus v1.5.0
+	github.com/spf13/cobra v1.0.0
+	github.com/spf13/viper v1.6.3
 	github.com/prometheus/common v0.9.1
 	github.com/rancher/go-rancher v0.1.0 // indirect
 	github.com/rancher/norman v0.0.0-20190821234528-20a936b685b0

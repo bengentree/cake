@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "github.com/netapp/capv-bootstrap/cmd"
+import "github.com/netapp/cake/cmd"
 
 func main() {
 	cmd.Execute()

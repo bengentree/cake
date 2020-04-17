@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cmds"
 
 	v1 "k8s.io/api/core/v1"
 	v3 "sigs.k8s.io/cluster-api-provider-vsphere/api/v1alpha3"

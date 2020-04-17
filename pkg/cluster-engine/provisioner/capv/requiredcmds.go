@@ -1,6 +1,6 @@
 package capv
 
-import "github.com/netapp/capv-bootstrap/pkg/cmds"
+import "github.com/netapp/cake/pkg/cmds"
 
 type requiredCmd string
 
@@ -19,24 +19,22 @@ var RequiredCommands = cmds.ProvisionerCommands{Name: "required CAPV bootstrap c
 // RequiredCommands checks the PATH for required commands
 func (mc *MgmtCluster) RequiredCommands() []string {
 	kd := cmds.NewCommandLine(nil, string(kind), nil, nil)
-	c := cmds.NewCommandLine(nil, string(clusterctl), nil, nil)
-	k := cmds.NewCommandLine(nil, string(kubectl), nil, nil)
-	d := cmds.NewCommandLine(nil, string(docker), nil, nil)
-	h := cmds.NewCommandLine(nil, string(helm), nil, nil)
-	t := cmds.NewCommandLine(nil, string(tridentctl), nil, nil)
-
 	RequiredCommands.AddCommand(kd.CommandName, kd)
+	c := cmds.NewCommandLine(nil, string(clusterctl), nil, nil)
 	RequiredCommands.AddCommand(c.CommandName, c)
+	k := cmds.NewCommandLine(nil, string(kubectl), nil, nil)
 	RequiredCommands.AddCommand(k.CommandName, k)
+	d := cmds.NewCommandLine(nil, string(docker), nil, nil)
 	RequiredCommands.AddCommand(d.CommandName, d)
-	RequiredCommands.AddCommand(h.CommandName, h)
-	RequiredCommands.AddCommand(t.CommandName, t)
 
-	if !mc.Addons.Solidfire.Enable {
-		RequiredCommands.Remove(string(tridentctl))
+	if mc.Addons.Observability.Enable {
+		h := cmds.NewCommandLine(nil, string(helm), nil, nil)
+		RequiredCommands.AddCommand(h.CommandName, h)
 	}
-	if !mc.Addons.Observability.Enable {
-		RequiredCommands.Remove(string(helm))
+
+	if mc.Addons.Solidfire.Enable {
+		t := cmds.NewCommandLine(nil, string(tridentctl), nil, nil)
+		RequiredCommands.AddCommand(t.CommandName, t)
 	}
 
 	return RequiredCommands.Exist()

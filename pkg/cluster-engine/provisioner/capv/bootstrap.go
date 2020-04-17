@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/netapp/capv-bootstrap/pkg/cmds"
+	"github.com/netapp/cake/pkg/cmds"
 )
 
 // CreateBootstrap creates the temporary CAPv bootstrap cluster
