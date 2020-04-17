@@ -128,7 +128,7 @@ type MgmtCluster struct {
 	token         string
 	clusterURL    string
 	rancherClient *v3.Client
-	BootstrapIP                  string `yaml:"BootstrapIP"`
+	BootstrapIP   string `yaml:"BootstrapIP"`
 }
 
 func (c MgmtCluster) InstallAddons() error {
@@ -250,12 +250,6 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	//# Set server-url
 	//curl -k -s 'https://127.0.0.1/v3/settings/server-url' -H 'Content-Type: application/json' -H "Authorization: Bearer $APIKEY" -X PUT --data-binary '{"name":"server-url","value":"https://your-rancher.com/"}'
 
-	//body, _ := json.Marshal(map[string]interface{}{
-	//	"username": "admin",
-	//	"password": "admin",
-	//	"ttl":      0,
-	//})
-
 	body := v3public.BasicLogin{
 		Password:  "admin",
 		TTLMillis: 0,
@@ -297,7 +291,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	}
 	log.Debugf("Server URL setting : %v+", setting)
 
-	setting, err = c.rancherClient.Setting.Update(setting, map[string]string{"name": "server-url", "value": "https://"+c.BootstrapIP})
+	setting, err = c.rancherClient.Setting.Update(setting, map[string]string{"name": "server-url", "value": "https://" + c.BootstrapIP})
 	if err != nil {
 		return errors.New("Unable to update server-url setting: " + err.Error())
 	}
@@ -341,35 +335,35 @@ type VsphereNodeTemplate struct {
 }
 
 type VmwareVsphereConfig struct {
-	Boot2DockerURL string `json:"boot2dockerUrl,omitempty" yaml:"boot2dockerurl,omitempty"`
-	CloneFrom 	   string `json:"cloneFrom,omitempty" yaml:"cloneFrom,omitempty"`
-	CloudConfig 	   string `json:"cloudConfig,omitempty" yaml:"cloudConfig,omitempty"`
-	CloudInit 	   string `json:"cloudInit,omitempty" yaml:"cloudInit,omitempty"`
-	ContentLibrary 	   string `json:"contentLibrary,omitempty" yaml:"contentLibrary,omitempty"`
-	CreationType   string `json:"creationType,omitempty" yaml:"creationType,omitempty"`
-	CpuCount       string `json:"cpuCount,omitempty" yaml:"cpu_count,omitempty"`
-	Datacenter     string `json:"datacenter,omitempty" yaml:"datacenter,omitempty"`
-	Datastore      string `json:"datastore,omitempty" yaml:"datastore,omitempty"`
-	DatastoreCluster      string `json:"datastoreCluster,omitempty" yaml:"datastoreCluster,omitempty"`
-	DiskSize       string `json:"diskSize,omitempty" yaml:"disk_size,omitempty"`
-	Folder         string `json:"folder,omitempty" yaml:"folder,omitempty"`
-	Hostsystem     string `json:"hostsystem,omitempty" yaml:"region,omitempty"`
-	MemorySize     string `json:"memorySize,omitempty" yaml:"memory_size,omitempty"`
-	SSHPassword    string `json:"sshPassword,omitempty" yaml:"sshPassword,omitempty"`
-	SSHPort        string `json:"sshPort,omitempty" yaml:"sshPort,omitempty"`
-	SSHUser        string `json:"sshUser,omitempty" yaml:"sshUser,omitempty"`
-	SSHUserGroup   string `json:"sshUserGroup,omitempty" yaml:"sshUserGroup,omitempty"`
-	Pool           string `json:"pool,omitempty" yaml:"pool,omitempty"`
+	Boot2DockerURL   string `json:"boot2dockerUrl,omitempty" yaml:"boot2dockerurl,omitempty"`
+	CloneFrom        string `json:"cloneFrom,omitempty" yaml:"cloneFrom,omitempty"`
+	CloudConfig      string `json:"cloudConfig,omitempty" yaml:"cloudConfig,omitempty"`
+	CloudInit        string `json:"cloudInit,omitempty" yaml:"cloudInit,omitempty"`
+	ContentLibrary   string `json:"contentLibrary,omitempty" yaml:"contentLibrary,omitempty"`
+	CreationType     string `json:"creationType,omitempty" yaml:"creationType,omitempty"`
+	CpuCount         string `json:"cpuCount,omitempty" yaml:"cpu_count,omitempty"`
+	Datacenter       string `json:"datacenter,omitempty" yaml:"datacenter,omitempty"`
+	Datastore        string `json:"datastore,omitempty" yaml:"datastore,omitempty"`
+	DatastoreCluster string `json:"datastoreCluster,omitempty" yaml:"datastoreCluster,omitempty"`
+	DiskSize         string `json:"diskSize,omitempty" yaml:"disk_size,omitempty"`
+	Folder           string `json:"folder,omitempty" yaml:"folder,omitempty"`
+	Hostsystem       string `json:"hostsystem,omitempty" yaml:"region,omitempty"`
+	MemorySize       string `json:"memorySize,omitempty" yaml:"memory_size,omitempty"`
+	SSHPassword      string `json:"sshPassword,omitempty" yaml:"sshPassword,omitempty"`
+	SSHPort          string `json:"sshPort,omitempty" yaml:"sshPort,omitempty"`
+	SSHUser          string `json:"sshUser,omitempty" yaml:"sshUser,omitempty"`
+	SSHUserGroup     string `json:"sshUserGroup,omitempty" yaml:"sshUserGroup,omitempty"`
+	Pool             string `json:"pool,omitempty" yaml:"pool,omitempty"`
 	*VsphereCredentialConfig
-	VappIPAllocationPolicy string `json:"vappIpallocationpolicy,omitempty" yaml:"vappIpallocationpolicy,omitempty"`
-	VappIPProtocol string`json:"vappIpprotocol,omitempty" yaml:"vappIpprotocol,omitempty"`
-	VappTransport string`json:"vappTransport,omitempty" yaml:"vappTransport,omitempty"`
-	UseDataStoreCluster bool     `json:"useDataStoreCluster,omitempty" yaml:"useDataStoreCluster,omitempty"`
-	Network             []string `json:"network,omitempty" yaml:"network,omitempty"`
-	CFGParam            []string `json:"cfgparam,omitempty" yaml:"cfgparam,omitempty"`
-	Tag []string `json:"tag,omitempty" yaml:"tag,omitempty"`
-	CustomAttribute []string `json:"customAttribute,omitempty" yaml:"customAttribute,omitempty"`
-	VappProperty []string `json:"vappProperty,omitempty" yaml:"vappProperty,omitempty"`
+	VappIPAllocationPolicy string   `json:"vappIpallocationpolicy,omitempty" yaml:"vappIpallocationpolicy,omitempty"`
+	VappIPProtocol         string   `json:"vappIpprotocol,omitempty" yaml:"vappIpprotocol,omitempty"`
+	VappTransport          string   `json:"vappTransport,omitempty" yaml:"vappTransport,omitempty"`
+	UseDataStoreCluster    bool     `json:"useDataStoreCluster,omitempty" yaml:"useDataStoreCluster,omitempty"`
+	Network                []string `json:"network,omitempty" yaml:"network,omitempty"`
+	CFGParam               []string `json:"cfgparam,omitempty" yaml:"cfgparam,omitempty"`
+	Tag                    []string `json:"tag,omitempty" yaml:"tag,omitempty"`
+	CustomAttribute        []string `json:"customAttribute,omitempty" yaml:"customAttribute,omitempty"`
+	VappProperty           []string `json:"vappProperty,omitempty" yaml:"vappProperty,omitempty"`
 }
 
 func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, networks []string) *VsphereNodeTemplate {
@@ -379,29 +373,29 @@ func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 			EngineInstallURL:     "https://releases.rancher.com/install-docker/19.03.sh",
 			EngineRegistryMirror: make([]string, 0),
 			UseInternalIPAddress: true,
-			Labels: make(map[string]string),
+			Labels:               make(map[string]string),
 		},
 		NamespaceID: "fixme",
 		VmwareVsphereConfig: VmwareVsphereConfig{
-			Boot2DockerURL: "https://releases.rancher.com/os/latest/rancheros-vmware.iso",
-			CloneFrom: "",
-			CloudConfig: "",
-			CloudInit: "",
-			ContentLibrary: "",
-			CpuCount:       "2",
-			CreationType:   "legacy",
-			Datacenter:     datacenter,
-			Datastore:      datastore,
+			Boot2DockerURL:   "https://releases.rancher.com/os/latest/rancheros-vmware.iso",
+			CloneFrom:        "",
+			CloudConfig:      "",
+			CloudInit:        "",
+			ContentLibrary:   "",
+			CpuCount:         "2",
+			CreationType:     "legacy",
+			Datacenter:       datacenter,
+			Datastore:        datastore,
 			DatastoreCluster: "",
-			DiskSize:       "20000",
-			Folder:         folder,
-			Hostsystem:     "",
-			MemorySize:     "2048",
-			SSHPassword:    "tcuser",
-			SSHPort:        "22",
-			SSHUser:        "docker",
-			SSHUserGroup:   "staff",
-			Pool:           pool,
+			DiskSize:         "20000",
+			Folder:           folder,
+			Hostsystem:       "",
+			MemorySize:       "2048",
+			SSHPassword:      "tcuser",
+			SSHPort:          "22",
+			SSHUser:          "docker",
+			SSHUserGroup:     "staff",
+			Pool:             pool,
 			VsphereCredentialConfig: &VsphereCredentialConfig{
 				Password:    "",
 				Username:    "",
@@ -410,20 +404,16 @@ func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 				Type:        "vmwarevsphereConfig",
 			},
 			VappIPAllocationPolicy: "",
-			VappIPProtocol: "",
-			VappTransport: "",
-			UseDataStoreCluster: false,
-			Network:             networks,
-			Tag: make([]string, 0),
-			CustomAttribute: make([]string, 0),
-			CFGParam:            []string{"disk.enableUUID=TRUE"},
-			VappProperty: make([]string, 0),
+			VappIPProtocol:         "",
+			VappTransport:          "",
+			UseDataStoreCluster:    false,
+			Network:                networks,
+			Tag:                    make([]string, 0),
+			CustomAttribute:        make([]string, 0),
+			CFGParam:               []string{"disk.enableUUID=TRUE"},
+			VappProperty:           make([]string, 0),
 		},
 	}
-}
-
-type Cluster struct {
-	*v3.Cluster
 }
 
 func (c *MgmtCluster) CreatePermanent() error {
@@ -443,56 +433,6 @@ func (c *MgmtCluster) CreatePermanent() error {
 	cloudCredID := credResp.ID
 	log.Infof("Cloud cred ID: %v+", cloudCredID)
 
-	// POST https://localhost/v3/nodetemplate
-	//b := []byte(`{
-	//	"useInternalIpAddress": true,
-	//	"type": "nodeTemplate",
-	//	"engineInstallURL": "https://releases.rancher.com/install-docker/19.03.sh",
-	//	"engineRegistryMirror": [],
-	//	"vmwarevsphereConfig": {
-	//		"boot2dockerUrl": "https://releases.rancher.com/os/latest/rancheros-vmware.iso",
-	//		"cloneFrom": "",
-	//		"cloudConfig": "",
-	//		"cloudinit": "",
-	//		"contentLibrary": "",
-	//		"cpuCount": "2",
-	//		"creationType": "legacy",
-	//		"datacenter": "/NetApp-HCI-Datacenter-01",
-	//		"datastore": "/NetApp-HCI-Datacenter-01/datastore/NetApp-HCI-Datastore-01",
-	//		"datastoreCluster": "",
-	//		"diskSize": "20000",
-	//		"folder": "/NetApp-HCI-Datacenter-01/vm/rancher",
-	//		"hostsystem": "",
-	//		"memorySize": "2048",
-	//		"password": "",
-	//		"pool": "/NetApp-HCI-Datacenter-01/host/NetApp-HCI-Cluster-01/Resources/rancher",
-	//		"sshPassword": "tcuser",
-	//		"sshPort": "22",
-	//		"sshUser": "docker",
-	//		"sshUserGroup": "staff",
-	//		"username": "",
-	//		"vappIpallocationpolicy": "",
-	//		"vappIpprotocol": "",
-	//		"vappTransport": "",
-	//		"vcenter": "",
-	//		"vcenterPort": "443",
-	//		"type": "vmwarevsphereConfig",
-	//		"useDataStoreCluster": false,
-	//		"network": ["/NetApp-HCI-Datacenter-01/network/VM_Network"],
-	//		"tag": [],
-	//		"customAttribute": [],
-	//		"cfgparam": ["disk.enableUUID=TRUE"],
-	//		"vappProperty": []
-	//	},
-	//	"namespaceId": "fixme",
-	//	"cloudCredentialId": "cattle-global-data:cc-sqqg9",
-	//	"labels": {}
-	//}`)
-	//reqJSON := make(map[string]interface{})
-	//json.Unmarshal(b, &reqJSON)
-	//reqJSON["cloudCredentialId"] = cloudCredID
-	//resp, err = c.makeHTTPRequest("POST", "https://localhost/v3/nodetemplate", reqJSON)
-
 	nodeTemplate := NewVsphereNodeTemplate(cloudCredID, c.Datacenter, c.Datastore, c.Folder, c.ResourcePool, []string{c.ManagementNetwork})
 	resp, err = c.makeHTTPRequest("POST", "https://localhost/v3/nodetemplate", nodeTemplate)
 	if err != nil {
@@ -505,115 +445,8 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 	nodeTemplateID := nodeTemplateResp.ID
-
-	//respJSON := make(map[string]interface{})
-	//err = json.NewDecoder(resp.Body).Decode(&respJSON)
-	//if err != nil {
-	//	return err
-	//}
-	//nodeTemplateID := respJSON["id"].(string)
 	log.Infof("Node template ID: %v+", nodeTemplateID)
 
-	// POST https://localhost/v3/cluster?_replace=true
-	//b = []byte(`{
-	//	"dockerRootDir": "/var/lib/docker",
-	//	"enableClusterAlerting": false,
-	//	"enableClusterMonitoring": false,
-	//	"enableNetworkPolicy": false,
-	//	"windowsPreferedCluster": false,
-	//	"type": "cluster",
-	//	"name": "rke-management",
-	//	"rancherKubernetesEngineConfig": {
-	//	"addonJobTimeout": 30,
-	//		"ignoreDockerVersion": true,
-	//		"sshAgentAuth": false,
-	//		"type": "rancherKubernetesEngineConfig",
-	//		"kubernetesVersion": "v1.17.4-rancher1-3",
-	//		"authentication": {
-	//		"strategy": "x509",
-	//			"type": "authnConfig"
-	//	},
-	//	"dns": {
-	//		"type": "dnsConfig",
-	//			"nodelocal": {
-	//			"type": "nodelocal",
-	//				"ip_address": "",
-	//				"node_selector": null,
-	//				"update_strategy": {}
-	//		}
-	//	},
-	//	"network": {
-	//		"mtu": 0,
-	//			"plugin": "canal",
-	//			"type": "networkConfig",
-	//			"options": {
-	//			"flannel_backend_type": "vxlan"
-	//		}
-	//	},
-	//	"ingress": {
-	//		"provider": "nginx",
-	//			"type": "ingressConfig"
-	//	},
-	//	"monitoring": {
-	//		"provider": "metrics-server",
-	//			"replicas": 1,
-	//			"type": "monitoringConfig"
-	//	},
-	//	"services": {
-	//		"type": "rkeConfigServices",
-	//			"kubeApi": {
-	//			"alwaysPullImages": false,
-	//				"podSecurityPolicy": false,
-	//				"serviceNodePortRange": "30000-32767",
-	//				"type": "kubeAPIService"
-	//		},
-	//		"etcd": {
-	//			"creation": "12h",
-	//				"extraArgs": {
-	//				"heartbeat-interval": 500,
-	//					"election-timeout": 5000
-	//			},
-	//			"gid": 0,
-	//				"retention": "72h",
-	//				"snapshot": false,
-	//				"uid": 0,
-	//				"type": "etcdService",
-	//				"backupConfig": {
-	//				"enabled": true,
-	//					"intervalHours": 12,
-	//					"retention": 6,
-	//					"safeTimestamp": false,
-	//					"type": "backupConfig"
-	//			}
-	//		}
-	//	},
-	//	"upgradeStrategy": {
-	//		"maxUnavailableControlplane": "1",
-	//			"maxUnavailableWorker": "10%%",
-	//			"drain": "false",
-	//			"nodeDrainInput": {
-	//			"deleteLocalData": "false",
-	//				"force": false,
-	//				"gracePeriod": -1,
-	//				"ignoreDaemonSets": true,
-	//				"timeout": 120,
-	//				"type": "nodeDrainInput"
-	//		},
-	//		"maxUnavailableUnit": "percentage"
-	//	}
-	//},
-	//	"localClusterAuthEndpoint": {
-	//	"enabled": true,
-	//		"type": "localClusterAuthEndpoint"
-	//},
-	//	"labels": {},
-	//	"scheduledClusterScan": {
-	//	"enabled": false,
-	//		"scheduleConfig": null,
-	//		"scanConfig": null
-	//	}
-	//}`)
-	//resp, err = c.makeHTTPRequest("POST", "https://localhost/v3/cluster?_replace=true", b)
 	clusterReq := &v3.Cluster{
 		DockerRootDir:           "/var/lib/docker",
 		EnableClusterAlerting:   false,
@@ -622,10 +455,10 @@ func (c *MgmtCluster) CreatePermanent() error {
 		WindowsPreferedCluster:  false,
 		Name:                    c.ClusterName,
 		RancherKubernetesEngineConfig: &v3.RancherKubernetesEngineConfig{
-			AddonJobTimeout: 30,
-			Version: c.KubernetesVersion,
+			AddonJobTimeout:     30,
+			Version:             c.KubernetesVersion,
 			IgnoreDockerVersion: true,
-			SSHAgentAuth:    false,
+			SSHAgentAuth:        false,
 			Authentication: &v3.AuthnConfig{
 				Strategy: "x509",
 			},
@@ -679,32 +512,10 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 	log.Infof("Created cluster")
-	//result := make(map[string]interface{})
-	//json.NewDecoder(resp.Body).Decode(&result)
-	//clusterID := result["id"].(string)
-	//links := result["links"].(map[string]interface{})
-	//c.clusterURL = links["self"].(string)
 	clusterID := clusterResp.ID
 	c.clusterURL = clusterResp.Links["self"]
 	log.Infof("Cluster ID: %v+", clusterID)
-	// POST - https://localhost/v3/nodepool
-	/*
-		{
-			"controlPlane": true,
-			"deleteNotReadyAfterSecs": 0,
-			"etcd": false,
-			"quantity": 1,
-			"worker": false,
-			"type": "nodePool",
-			"clusterId": "c-qtsbz",
-			"nodeTemplateId": "cattle-global-nt:nt-v5v22",
-			"hostnamePrefix": "rke-ctrl"
-		}
 
-		{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":false,"quantity":2,"worker":true,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-worker"}
-
-		{"controlPlane":false,"deleteNotReadyAfterSecs":0,"etcd":true,"quantity":1,"worker":false,"type":"nodePool","nodeTemplateId":"cattle-global-nt:nt-v5v22","clusterId":"c-qtsbz","hostnamePrefix":"rke-etcd"}
-	*/
 	err = c.createNodePools(clusterID, nodeTemplateID)
 	if err != nil {
 		return err
@@ -720,39 +531,26 @@ func (c MgmtCluster) PivotControlPlane() error {
 
 	c.events <- capv.Event{EventType: "progress", Event: "install production rancher server"}
 
-	// POST https://172.60.5.53/v3/catalog
-	//b := []byte(`{
-	//	"type": "catalog",
-	//	"kind": "helm",
-	//	"branch": "master",
-	//	"helmVersion": "rancher-helm",
-	//	"name": "rancher-latest",
-	//	"url": "https://releases.rancher.com/server-charts/latest",
-	//	"username": null,
-	//	"password": null
-	//}`)
 	catalogReq := &v3.Catalog{
-		Branch:               "master",
-		Kind:                 "helm",
-		Name:                 "rancher-latest",
-		URL:                  "https://releases.rancher.com/server-charts/latest",
-		Username:             "",
-		Password:             "",
+		Branch:   "master",
+		Kind:     "helm",
+		Name:     "rancher-latest",
+		URL:      "https://releases.rancher.com/server-charts/latest",
+		Username: "",
+		Password: "",
 	}
 	_, err := c.rancherClient.Catalog.Create(catalogReq)
-	//resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/catalog", b)
 	if err != nil {
 		return err
 	}
 	log.Info("Added rancher helm chart")
+
 	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
-
 
 	// I don't know if setting the default project ID is necessary. The UI did it so I added it here as well
 	var projectID string
 	projCollectionResp, err := c.rancherClient.Project.List(&rTypes.ListOpts{})
-	//resp, err = c.makeHTTPRequest("GET", fmt.Sprintf("%s/projects", c.clusterURL), nil)
 	if err != nil {
 		return err
 	}
@@ -762,20 +560,6 @@ func (c MgmtCluster) PivotControlPlane() error {
 			projectID = proj.ID
 		}
 	}
-	//result := make(map[string]interface{})
-	//err = json.NewDecoder(resp.Body).Decode(&result)
-	//if err != nil {
-	//	return err
-	//}
-	//if projects, ok := result["data"].([]interface{}); ok {
-	//	for _, p := range projects {
-	//		project := p.(map[string]interface{})
-	//		if project["name"] == "Default" {
-	//			projectID = project["id"].(string)
-	//			break
-	//		}
-	//	}
-	//}
 	log.Infof("Got default project ID: %s", projectID)
 
 	projSplit := strings.Split(projectID, ":")
@@ -800,42 +584,18 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	log.Infof("Updated default namespace")
 
-	//v3projectCli, err := v3project.NewClient(&clientbase.ClientOpts{
-	//	URL:      "https://localhost/v3/projects",
-	//	TokenKey: c.token,
-	//})
-	//if err != nil {
-	//	return err
-	//}
-
-	// POST https://172.60.5.53/v3/projects/c-88nwn:p-tjkqt/app
-	//b = []byte(`{
-	//	"prune": false,
-	//	"timeout": 300,
-	//	"wait": false,
-	//	"type": "app",
-	//	"name": "rancher",
-	//	"answers": {
-	//		"tls": "external"
-	//	},
-	//	"targetNamespace": "default",
-	//	"externalId": "catalog://?catalog=rancher-latest&template=rancher&version=2.4.2",
-	//	"projectId": "c-88nwn:p-tjkqt",
-	//	"valuesYaml": ""
-	//}`)
-
 	appReq := &v3project.App{
-		Prune: false,
+		Prune:   false,
 		Timeout: 300,
-		Wait: false,
-		Name: "rancher",
+		Wait:    false,
+		Name:    "rancher",
 		Answers: map[string]string{
 			"tls": "external",
 		},
 		TargetNamespace: "default",
-		ExternalID: "catalog://?catalog=rancher-latest&template=rancher&version=2.4.2",
-		ProjectID: projectID,
-		ValuesYaml: "",
+		ExternalID:      "catalog://?catalog=rancher-latest&template=rancher&version=2.4.2",
+		ProjectID:       projectID,
+		ValuesYaml:      "",
 	}
 
 	// POST is not a supported verb through the client
@@ -846,17 +606,6 @@ func (c MgmtCluster) PivotControlPlane() error {
 	//	return err
 	//}
 
-	//reqJSON := make(map[string]interface{})
-	//json.Unmarshal(b, &reqJSON)
-	//reqJSON["projectId"] = projectID
-	//
-	//// This is needed to not escape the HTML in the externalId field
-	////"message":"catalogtemplateversions.management.cattle.io \"rancher-latest-rancher-2.4.2\" not found"
-	//bf := bytes.NewBuffer([]byte{})
-	//jsonEncoder := json.NewEncoder(bf)
-	//jsonEncoder.SetEscapeHTML(false)
-	//jsonEncoder.Encode(reqJSON)
-	//
 	defaultProjectURL := fmt.Sprintf("https://localhost/v3/projects/%s", projectID)
 	resp, err = c.makeHTTPRequest("POST", fmt.Sprintf("%s/app", defaultProjectURL), appReq)
 	if err != nil {
@@ -867,10 +616,6 @@ func (c MgmtCluster) PivotControlPlane() error {
 	err = json.NewDecoder(resp.Body).Decode(&appResp)
 	rancherAppURL := appResp.Links["self"]
 	log.Infof("Rancher app URL: ", rancherAppURL)
-	//result = make(map[string]interface{})
-	//json.NewDecoder(resp.Body).Decode(&result)
-	//links := result["links"].(map[string]interface{})
-	//json.NewDecoder(resp.Body).Decode(&result)
 
 	c.events <- capv.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
 	return c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
@@ -940,7 +685,6 @@ func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 		//{"rke-etcd", 1, false, false, true},
 	}
 	for _, np := range nodePools {
-		//req := createNodePoolReq(clusterID, nodeTemplateID, np.prefix, np.count, np.ctrl, np.worker, np.etcd)
 		nodePoolReq := &v3.NodePool{
 			ControlPlane:            np.ctrl,
 			DeleteNotReadyAfterSecs: 0,
@@ -952,12 +696,10 @@ func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 			HostnamePrefix:          np.prefix,
 		}
 		nodePoolResp, err := c.rancherClient.NodePool.Create(nodePoolReq)
-		//_, err := c.makeHTTPRequest("POST", "https://localhost/v3/nodepool", req)
 		if err != nil {
 			return err
 		}
 		log.Info("Created node pool: ", nodePoolResp.HostnamePrefix)
-		//log.Info("Created node pool: ", np.prefix)
 	}
 	return nil
 }
@@ -979,7 +721,7 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("HTTP request: %q", dump)
+	log.Debugf("HTTP request: %q", dump)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return resp, err
@@ -990,7 +732,7 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 		return resp, err
 	}
 
-	log.Infof("HTTP response: %q", dump)
+	log.Debugf("HTTP response: %q", dump)
 	return resp, err
 }
 
@@ -1018,28 +760,4 @@ func waitForRancherAPI() error {
 			}
 		}
 	}
-}
-
-func createNodePoolReq(clusterID, nodeTemplateID, prefix string, cnt int64, ctrl, worker, etcd bool) map[string]interface{} {
-	b := []byte(`{
-		"controlPlane": true,
-		"deleteNotReadyAfterSecs": 0,
-		"etcd": false,
-		"quantity": 1,
-		"worker": false,
-		"type": "nodePool",
-		"clusterId": "c-qtsbz",
-		"nodeTemplateId": "cattle-global-nt:nt-v5v22",
-		"hostnamePrefix": "rke-ctrl"
-	}`)
-	result := make(map[string]interface{})
-	json.Unmarshal(b, &result)
-	result["clusterId"] = clusterID
-	result["nodeTemplateId"] = nodeTemplateID
-	result["hostnamePrefix"] = prefix
-	result["quantity"] = cnt
-	result["worker"] = worker
-	result["controlPlane"] = ctrl
-	result["etcd"] = etcd
-	return result
 }
