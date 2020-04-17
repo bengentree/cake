@@ -5,7 +5,6 @@ go 1.14
 replace (
 	k8s.io/api => k8s.io/api v0.17.2
 	k8s.io/client-go => k8s.io/client-go v0.17.2
-
 )
 
 require (
