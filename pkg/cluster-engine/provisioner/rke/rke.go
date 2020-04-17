@@ -260,7 +260,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
 	resp, _ := http.DefaultClient.Do(req)
 	log.Infof("Enabled local login")
-	log.Infof("Enabled local login: %v+", resp)
+	log.Debugf("Enabled local login: %v+", resp)
 
 	var tokenResp v3public.Token
 	err = json.NewDecoder(resp.Body).Decode(&tokenResp)
@@ -431,14 +431,14 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return errors.New("unable to decode cloud cred response: " + err.Error())
 	}
 	cloudCredID := credResp.ID
-	log.Infof("Cloud cred ID: %v+", cloudCredID)
+	log.Infof("Cloud cred ID: %v", cloudCredID)
 
 	nodeTemplate := NewVsphereNodeTemplate(cloudCredID, c.Datacenter, c.Datastore, c.Folder, c.ResourcePool, []string{c.ManagementNetwork})
 	resp, err = c.makeHTTPRequest("POST", "https://localhost/v3/nodetemplate", nodeTemplate)
 	if err != nil {
 		return err
 	}
-	log.Infof("Created node template: %v+", resp)
+	log.Debugf("Created node template: %v+", resp)
 	var nodeTemplateResp v3.NodeTemplate
 	err = json.NewDecoder(resp.Body).Decode(&nodeTemplateResp)
 	if err != nil {
