@@ -1,27 +1,38 @@
-CLUSTER_ENGINE_BINARY := cluster-engine
-# OSFLAG := $(shell go env GOHOSTOS)
-OSFLAG := linux
+BINARY := cake
+SHELL := /usr/bin/env bash
+export GO111MODULE := on
+BIN_DIR := bin
+PLATFORMS := windows linux darwin
+OSFLAG := $(shell go env GOHOSTOS)
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[32m%-30s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: all-binaries
+all-binaries: linux darwin windows ## Compile binaries for all supported platforms (linux, darwin and windows)
+.PHONY: linux 
+linux: ## Compile the cake binary for linux
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/cake main.go	
+	mv bin/cake bin/cake-linux
 
-#####################
-# Build and cleanup #
-#####################
+.PHONY: darwin
+darwin: ## Compile the cake binary for mac
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/cake main.go	
+	mv bin/cake bin/cake-darwin
 
-.PHONY: ${CLUSTER_ENGINE_BINARY}
-binary:  ${CLUSTER_ENGINE_BINARY} ## Create cluster-engine CLI binary
-${CLUSTER_ENGINE_BINARY}:	
-	mkdir -p bin/${CLUSTER_ENGINE_BINARY}
-	GOOS=${OSFLAG} GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/${CLUSTER_ENGINE_BINARY}/${CLUSTER_ENGINE_BINARY}-${OSFLAG} cmd/${CLUSTER_ENGINE_BINARY}/${CLUSTER_ENGINE_BINARY}.go
+.PHONY: windows 
+windows: ## Compile the cake binary for windows
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/cake main.go	
+	mv bin/cake bin/cake.exe
 
-.PHONY: c clean
-c: clean
+.PHONY: cake
+cake: ## Compile the cake binary 
+	GOOS=${OSFLAG} GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/cake main.go	
+
+.PHONY: clean
 clean:  ## Clean up all the go modules
 	go clean -modcache -cache
 
-.PHONY: t tidy
-t: tidy
+.PHONY: tidy
 tidy:  ## Clean up all go modules
 	go mod tidy
