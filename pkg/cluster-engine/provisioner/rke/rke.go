@@ -33,29 +33,18 @@ import (
 type requiredCmd string
 
 const (
-	kind       requiredCmd = "kind"
-	clusterctl requiredCmd = "clusterctl"
-	kubectl    requiredCmd = "kubectl"
-	docker     requiredCmd = "docker"
-	helm       requiredCmd = "helm"
+	docker requiredCmd = "docker"
 )
 
 // RequiredCommands for capv provisioner
 var RequiredCommands = cmds.ProvisionerCommands{Name: "required CAPV bootstrap commands"}
 
 func init() {
-	kd := cmds.NewCommandLine(nil, string(kind), nil, nil)
-	c := cmds.NewCommandLine(nil, string(clusterctl), nil, nil)
-	k := cmds.NewCommandLine(nil, string(kubectl), nil, nil)
 	d := cmds.NewCommandLine(nil, string(docker), nil, nil)
 	//h := cmds.NewCommandLine(nil, string(helm), nil, nil)
 
-	RequiredCommands.AddCommand(kd.CommandName, kd)
-	RequiredCommands.AddCommand(c.CommandName, c)
-	RequiredCommands.AddCommand(k.CommandName, k)
 	RequiredCommands.AddCommand(d.CommandName, d)
 	//RequiredCommands.AddCommand(h.CommandName, h)
-
 }
 
 // NewMgmtCluster creates a new cluster interface
@@ -158,17 +147,14 @@ func (c MgmtCluster) CreateBootstrap() error {
 	//if err != nil {
 	//	return err
 	//}
-	dockerPullCmd := exec.Command("docker", "pull", imageName)
-	if err := dockerPullCmd.Run(); err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
-				return err
-			}
-		} else {
-			return err
-		}
+	args := []string{
+		"pull",
+		imageName,
 	}
-
+	err = cmds.GenericExecute(nil, string(docker), args, nil)
+	if err != nil {
+		return err
+	}
 	hostBinding := nat.PortBinding{
 		HostIP:   "0.0.0.0",
 		HostPort: "80",
