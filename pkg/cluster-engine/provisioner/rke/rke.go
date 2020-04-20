@@ -39,10 +39,7 @@ var RequiredCommands = cmds.ProvisionerCommands{Name: "required CAPV bootstrap c
 
 func init() {
 	d := cmds.NewCommandLine(nil, string(docker), nil, nil)
-	//h := cmds.NewCommandLine(nil, string(helm), nil, nil)
-
 	RequiredCommands.AddCommand(d.CommandName, d)
-	//RequiredCommands.AddCommand(h.CommandName, h)
 }
 
 // NewMgmtCluster creates a new cluster interface
@@ -156,6 +153,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	if err != nil {
 		return err
 	}
+
 	hostBinding := nat.PortBinding{
 		HostIP:   "0.0.0.0",
 		HostPort: "80",
@@ -334,14 +332,14 @@ type VmwareVsphereConfig struct {
 	CloudInit        string `json:"cloudInit,omitempty" yaml:"cloudInit,omitempty"`
 	ContentLibrary   string `json:"contentLibrary,omitempty" yaml:"contentLibrary,omitempty"`
 	CreationType     string `json:"creationType,omitempty" yaml:"creationType,omitempty"`
-	CPUCount         string `json:"cpuCount,omitempty" yaml:"cpu_count,omitempty"`
+	CPUCount         string `json:"cpuCount,omitempty" yaml:"cpuCount,omitempty"`
 	Datacenter       string `json:"datacenter,omitempty" yaml:"datacenter,omitempty"`
 	Datastore        string `json:"datastore,omitempty" yaml:"datastore,omitempty"`
 	DatastoreCluster string `json:"datastoreCluster,omitempty" yaml:"datastoreCluster,omitempty"`
-	DiskSize         string `json:"diskSize,omitempty" yaml:"disk_size,omitempty"`
+	DiskSize         string `json:"diskSize,omitempty" yaml:"diskSize,omitempty"`
 	Folder           string `json:"folder,omitempty" yaml:"folder,omitempty"`
 	Hostsystem       string `json:"hostsystem,omitempty" yaml:"region,omitempty"`
-	MemorySize       string `json:"memorySize,omitempty" yaml:"memory_size,omitempty"`
+	MemorySize       string `json:"memorySize,omitempty" yaml:"memorySize,omitempty"`
 	SSHPassword      string `json:"sshPassword,omitempty" yaml:"sshPassword,omitempty"`
 	SSHPort          string `json:"sshPort,omitempty" yaml:"sshPort,omitempty"`
 	SSHUser          string `json:"sshUser,omitempty" yaml:"sshUser,omitempty"`
