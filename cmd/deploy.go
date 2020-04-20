@@ -27,23 +27,19 @@ var (
 	workerMachineCountDefault       = 2
 	logLevelDefault                 = "info"
 	appName                         = "cluster-engine"
+	deploymentType                  string
 )
 
-var capvDeployCmd = &cobra.Command{
-	Use:   "capv-deploy",
-	Short: "Launch Cluster API Provider-vSphere (CAPV) Management Cluster",
-	Long:  `Launch Cluster API Provider-vSphere (CAPV) Management Cluster`,
+var deployCmd = &cobra.Command{
+	Use:   "deploy",
+	Short: "Deploy a K8s CAPv or Rancher Management Cluster",
+	Long:  `CAPv deploy will create an upstream CAPv managment cluster, the Rancher/RKE option will deploy an RKE cluster with Rancher Server`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCapvProvisioner(controlPlaneMachineCount, workerMachineCount)
-	},
-}
-
-var rkeDeployCmd = &cobra.Command{
-	Use:   "rke-deploy",
-	Short: "Launch Rancher (RKE) Management Cluster",
-	Long:  `Launch Rancher (RKE) Management Cluster`,
-	Run: func(cmd *cobra.Command, args []string) {
-		runRKEProvisioner(controlPlaneMachineCount, workerMachineCount)
+		if deploymentType == "capv" {
+			runCapvProvisioner(controlPlaneMachineCount, workerMachineCount)
+		} else {
+			log.Fatal("Currently only implemented deployment-type is `capv`")
+		}
 	},
 }
 
@@ -55,8 +51,10 @@ type progress struct {
 }
 
 func init() {
-	rootCmd.AddCommand(capvDeployCmd)
-	rootCmd.AddCommand(rkeDeployCmd)
+	deployCmd.Flags().StringVarP(&deploymentType, "deployment-type", "d", "", "The type of deployment to create (capv, rke)")
+	deployCmd.MarkFlagRequired("deployment-type")
+	rootCmd.AddCommand(deployCmd)
+
 	responseBody = new(progress)
 	responseBody.Messages = []string{}
 }
