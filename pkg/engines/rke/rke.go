@@ -42,20 +42,6 @@ func init() {
 	RequiredCommands.AddCommand(d.CommandName, d)
 }
 
-// NewMgmtCluster creates a new cluster interface
-func NewMgmtCluster(controlPlaneMachineCount, workerMachineCount, clustername string) engines.Cluster {
-	mc := new(MgmtCluster)
-	mc.ClusterName = clustername
-	mc.ControlPlaneMachineCount = controlPlaneMachineCount
-	mc.WorkerMachineCount = workerMachineCount
-	mc.events = make(chan interface{})
-	if mc.LogFile != "" {
-		cmds.FileLogLocation = mc.LogFile
-		os.Truncate(mc.LogFile, 0)
-	}
-	return mc
-}
-
 // NewMgmtClusterFullConfig creates a new cluster interface with a full config from the client
 func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 	mc := new(MgmtCluster)
@@ -68,51 +54,15 @@ func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 	return mc
 }
 
-// MgmtCluster spec for CAPV
+// MgmtCluster spec for RKE
 type MgmtCluster struct {
-	Datacenter               string `yaml:"Datacenter"`
-	Datastore                string `yaml:"Datastore"`
-	Folder                   string `yaml:"Folder"`
-	LoadBalancerTemplate     string `yaml:"LoadBalancerTemplate"`
-	NodeTemplate             string `yaml:"NodeTemplate"`
-	ManagementNetwork        string `yaml:"ManagementNetwork"`
-	WorkloadNetwork          string `yaml:"WorkloadNetwork"`
-	StorageNetwork           string `yaml:"StorageNetwork"`
-	ResourcePool             string `yaml:"ResourcePool"`
-	VcenterServer            string `yaml:"VcenterServer"`
-	VsphereUsername          string `yaml:"VsphereUsername"`
-	VspherePassword          string `yaml:"VspherePassword"`
-	ClusterName              string `yaml:"ClusterName"`
-	CapiSpec                 string `yaml:"CapiSpec"`
-	KubernetesVersion        string `yaml:"KubernetesVersion"`
-	Namespace                string `yaml:"Namespace"`
-	Kubeconfig               string `yaml:"Kubeconfig"`
-	SSHAuthorizedKey         string `yaml:"SshAuthorizedKey"`
-	ControlPlaneMachineCount string `yaml:"ControlPlaneMachineCount"`
-	WorkerMachineCount       string `yaml:"WorkerMachineCount"`
-	LogFile                  string `yaml:"LogFile"`
-	events                   chan interface{}
-	Solidfire                struct {
-		Enable   bool   `yaml:"Enable"`
-		MVIP     string `yaml:"MVIP"`
-		SVIP     string `yaml:"SVIP"`
-		User     string `yaml:"User"`
-		Password string `yaml:"Password"`
-	} `yaml:"Solidfire"`
-	Configuration struct {
-		Cluster struct {
-			KubernetesPodCidr     string `yaml:"KubernetesPodCidr"`
-			KubernetesServiceCidr string `yaml:"KubernetesServiceCidr"`
-		} `yaml:"Cluster"`
-		Observability struct {
-			Enabled         bool   `yaml:"Enabled"`
-			ArchiveLocation string `yaml:"ArchiveLocation"`
-		} `yaml:"Observability"`
-	} `yaml:"Configuration"`
-	token         string
-	clusterURL    string
-	rancherClient *v3.Client
-	BootstrapIP   string `yaml:"BootstrapIP"`
+	engines.MgmtCluster `yaml:",inline" mapstructure:",squash"`
+	capv.Vsphere        `yaml:",inline" mapstructure:",squash"`
+	events              chan interface{}
+	token               string
+	clusterURL          string
+	rancherClient       *v3.Client
+	BootstrapIP         string `yaml:"BootstrapIP"`
 }
 
 // InstallAddons to HA RKE cluster
@@ -286,14 +236,14 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	return nil
 }
 
-// VsphereCloudCredential extends the rancher v3 model to include VMware properties
-type VsphereCloudCredential struct {
+// vsphereCloudCredential extends the rancher v3 model to include VMware properties
+type vsphereCloudCredential struct {
 	*v3.CloudCredential
-	VMwareVsphereCredentialConfig VsphereCredentialConfig `json:"vmwarevspherecredentialConfig,omitempty" yaml:"vmwarevspherecredentialConfig,omitempty"`
+	VMwareVsphereCredentialConfig vsphereCredentialConfig `json:"vmwarevspherecredentialConfig,omitempty" yaml:"vmwarevspherecredentialConfig,omitempty"`
 }
 
-// VsphereCredentialConfig are vSphere specific credential config properties
-type VsphereCredentialConfig struct {
+// vsphereCredentialConfig are vSphere specific credential config properties
+type vsphereCredentialConfig struct {
 	Password    string `json:"password,omitempty" yaml:"password,omitempty"`
 	Username    string `json:"username,omitempty" yaml:"username,omitempty"`
 	Vcenter     string `json:"vcenter,omitempty" yaml:"vcenter,omitempty"`
@@ -302,12 +252,12 @@ type VsphereCredentialConfig struct {
 }
 
 // NewVsphereCloudCredential constructor
-func NewVsphereCloudCredential(vcenter, username, password string) *VsphereCloudCredential {
-	return &VsphereCloudCredential{
+func NewVsphereCloudCredential(vcenter, username, password string) *vsphereCloudCredential {
+	return &vsphereCloudCredential{
 		CloudCredential: &v3.CloudCredential{
 			Name: "rke-bootstrap",
 		},
-		VMwareVsphereCredentialConfig: VsphereCredentialConfig{
+		VMwareVsphereCredentialConfig: vsphereCredentialConfig{
 			Password:    password,
 			Username:    username,
 			Vcenter:     vcenter,
@@ -317,15 +267,15 @@ func NewVsphereCloudCredential(vcenter, username, password string) *VsphereCloud
 	}
 }
 
-// VsphereNodeTemplate extends rancher v3 NodeTemplate model to include vSphere properties
-type VsphereNodeTemplate struct {
+// vsphereNodeTemplate extends rancher v3 NodeTemplate model to include vSphere properties
+type vsphereNodeTemplate struct {
 	*v3.NodeTemplate
 	NamespaceID         string              `json:"namespaceId,omitempty" yaml:"namespaceId,omitempty"`
-	VmwareVsphereConfig VmwareVsphereConfig `json:"vmwarevsphereConfig,omitempty" yaml:"vmwarevsphereConfig,omitempty"`
+	VmwareVsphereConfig vmwareVsphereConfig `json:"vmwarevsphereConfig,omitempty" yaml:"vmwarevsphereConfig,omitempty"`
 }
 
-// VmwareVsphereConfig vSphere specific NodeTemplate properties
-type VmwareVsphereConfig struct {
+// vmwareVsphereConfig vSphere specific NodeTemplate properties
+type vmwareVsphereConfig struct {
 	Boot2DockerURL   string `json:"boot2dockerUrl,omitempty" yaml:"boot2dockerurl,omitempty"`
 	CloneFrom        string `json:"cloneFrom,omitempty" yaml:"cloneFrom,omitempty"`
 	CloudConfig      string `json:"cloudConfig,omitempty" yaml:"cloudConfig,omitempty"`
@@ -345,7 +295,7 @@ type VmwareVsphereConfig struct {
 	SSHUser          string `json:"sshUser,omitempty" yaml:"sshUser,omitempty"`
 	SSHUserGroup     string `json:"sshUserGroup,omitempty" yaml:"sshUserGroup,omitempty"`
 	Pool             string `json:"pool,omitempty" yaml:"pool,omitempty"`
-	*VsphereCredentialConfig
+	*vsphereCredentialConfig
 	VappIPAllocationPolicy string   `json:"vappIpallocationpolicy,omitempty" yaml:"vappIpallocationpolicy,omitempty"`
 	VappIPProtocol         string   `json:"vappIpprotocol,omitempty" yaml:"vappIpprotocol,omitempty"`
 	VappTransport          string   `json:"vappTransport,omitempty" yaml:"vappTransport,omitempty"`
@@ -357,9 +307,9 @@ type VmwareVsphereConfig struct {
 	VappProperty           []string `json:"vappProperty,omitempty" yaml:"vappProperty,omitempty"`
 }
 
-// NewVsphereNodeTemplate constructor
-func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, networks []string) *VsphereNodeTemplate {
-	return &VsphereNodeTemplate{
+// newVsphereNodeTemplate constructor
+func newVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, networks []string) *vsphereNodeTemplate {
+	return &vsphereNodeTemplate{
 		NodeTemplate: &v3.NodeTemplate{
 			CloudCredentialID:    ccID,
 			EngineInstallURL:     "https://releases.rancher.com/install-docker/19.03.sh",
@@ -368,7 +318,7 @@ func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 			Labels:               make(map[string]string),
 		},
 		NamespaceID: "fixme",
-		VmwareVsphereConfig: VmwareVsphereConfig{
+		VmwareVsphereConfig: vmwareVsphereConfig{
 			Boot2DockerURL:   "https://releases.rancher.com/os/latest/rancheros-vmware.iso",
 			CloneFrom:        "",
 			CloudConfig:      "",
@@ -388,7 +338,7 @@ func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 			SSHUser:          "docker",
 			SSHUserGroup:     "staff",
 			Pool:             pool,
-			VsphereCredentialConfig: &VsphereCredentialConfig{
+			vsphereCredentialConfig: &vsphereCredentialConfig{
 				Password:    "",
 				Username:    "",
 				Vcenter:     "",
@@ -426,7 +376,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	cloudCredID := credResp.ID
 	log.Infof("Cloud cred ID: %v", cloudCredID)
 
-	nodeTemplate := NewVsphereNodeTemplate(cloudCredID, c.Datacenter, c.Datastore, c.Folder, c.ResourcePool, []string{c.ManagementNetwork})
+	nodeTemplate := newVsphereNodeTemplate(cloudCredID, c.Datacenter, c.Datastore, c.Folder, c.ResourcePool, []string{c.ManagementNetwork})
 	resp, err = c.makeHTTPRequest("POST", "https://localhost/v3/nodetemplate", nodeTemplate)
 	if err != nil {
 		return err

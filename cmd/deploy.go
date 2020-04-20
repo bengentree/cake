@@ -33,10 +33,12 @@ var (
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Deploy a K8s CAPv or Rancher Management Cluster",
-	Long:  `CAPv deploy will create an upstream CAPv managment cluster, the Rancher/RKE option will deploy an RKE cluster with Rancher Server`,
+	Long:  `CAPv deploy will create an upstream CAPv management cluster, the Rancher/RKE option will deploy an RKE cluster with Rancher Server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if deploymentType == "capv" {
 			runCapvProvisioner(controlPlaneMachineCount, workerMachineCount)
+		} else if deploymentType == "rke" {
+			runRKEProvisioner(controlPlaneMachineCount, workerMachineCount)
 		} else {
 			log.Fatal("Currently only implemented deployment-type is `capv`")
 		}
