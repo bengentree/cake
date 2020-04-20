@@ -23,10 +23,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -120,16 +118,19 @@ type MgmtCluster struct {
 	BootstrapIP   string `yaml:"BootstrapIP"`
 }
 
+// InstallAddons to HA RKE cluster
 func (c MgmtCluster) InstallAddons() error {
 	log.Infof("TODO: install addons")
 	return nil
 }
 
+// RequiredCommands provides validation for required commands
 func (c MgmtCluster) RequiredCommands() []string {
 	log.Infof("TODO: provide required commands")
 	return nil
 }
 
+// CreateBootstrap deploys a rancher container as single node RKE cluster
 func (c MgmtCluster) CreateBootstrap() error {
 	var err error
 
@@ -201,6 +202,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	return nil
 }
 
+// InstallControlPlane configures a single node RKE cluster
 func (c *MgmtCluster) InstallControlPlane() error {
 	// TODO: Remove TLS hack
 	// Get "https://localhost/": x509: certificate signed by unknown authority
@@ -286,11 +288,13 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	return nil
 }
 
+// VsphereCloudCredential extends the rancher v3 model to include VMware properties
 type VsphereCloudCredential struct {
 	*v3.CloudCredential
 	VMwareVsphereCredentialConfig VsphereCredentialConfig `json:"vmwarevspherecredentialConfig,omitempty" yaml:"vmwarevspherecredentialConfig,omitempty"`
 }
 
+// VsphereCredentialConfig are vSphere specific credential config properties
 type VsphereCredentialConfig struct {
 	Password    string `json:"password,omitempty" yaml:"password,omitempty"`
 	Username    string `json:"username,omitempty" yaml:"username,omitempty"`
@@ -299,6 +303,7 @@ type VsphereCredentialConfig struct {
 	Type        string `json:"type,omitempty" yaml:"type,omitempty"`
 }
 
+// NewVsphereCloudCredential constructor
 func NewVsphereCloudCredential(vcenter, username, password string) *VsphereCloudCredential {
 	return &VsphereCloudCredential{
 		CloudCredential: &v3.CloudCredential{
@@ -314,12 +319,14 @@ func NewVsphereCloudCredential(vcenter, username, password string) *VsphereCloud
 	}
 }
 
+// VsphereNodeTemplate extends rancher v3 NodeTemplate model to include vSphere properties
 type VsphereNodeTemplate struct {
 	*v3.NodeTemplate
 	NamespaceID         string              `json:"namespaceId,omitempty" yaml:"namespaceId,omitempty"`
 	VmwareVsphereConfig VmwareVsphereConfig `json:"vmwarevsphereConfig,omitempty" yaml:"vmwarevsphereConfig,omitempty"`
 }
 
+// VmwareVsphereConfig vSphere specific NodeTemplate properties
 type VmwareVsphereConfig struct {
 	Boot2DockerURL   string `json:"boot2dockerUrl,omitempty" yaml:"boot2dockerurl,omitempty"`
 	CloneFrom        string `json:"cloneFrom,omitempty" yaml:"cloneFrom,omitempty"`
@@ -327,7 +334,7 @@ type VmwareVsphereConfig struct {
 	CloudInit        string `json:"cloudInit,omitempty" yaml:"cloudInit,omitempty"`
 	ContentLibrary   string `json:"contentLibrary,omitempty" yaml:"contentLibrary,omitempty"`
 	CreationType     string `json:"creationType,omitempty" yaml:"creationType,omitempty"`
-	CpuCount         string `json:"cpuCount,omitempty" yaml:"cpu_count,omitempty"`
+	CPUCount         string `json:"cpuCount,omitempty" yaml:"cpu_count,omitempty"`
 	Datacenter       string `json:"datacenter,omitempty" yaml:"datacenter,omitempty"`
 	Datastore        string `json:"datastore,omitempty" yaml:"datastore,omitempty"`
 	DatastoreCluster string `json:"datastoreCluster,omitempty" yaml:"datastoreCluster,omitempty"`
@@ -352,6 +359,7 @@ type VmwareVsphereConfig struct {
 	VappProperty           []string `json:"vappProperty,omitempty" yaml:"vappProperty,omitempty"`
 }
 
+// NewVsphereNodeTemplate constructor
 func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, networks []string) *VsphereNodeTemplate {
 	return &VsphereNodeTemplate{
 		NodeTemplate: &v3.NodeTemplate{
@@ -368,7 +376,7 @@ func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 			CloudConfig:      "",
 			CloudInit:        "",
 			ContentLibrary:   "",
-			CpuCount:         "2",
+			CPUCount:         "2",
 			CreationType:     "legacy",
 			Datacenter:       datacenter,
 			Datastore:        datastore,
@@ -402,6 +410,7 @@ func NewVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 	}
 }
 
+// CreatePermanent deploys HA RKE cluster to vSphere
 func (c *MgmtCluster) CreatePermanent() error {
 	c.events <- capv.Event{EventType: "progress", Event: "configure RKE management cluster"}
 	// POST https://localhost/v3/cloudcredential
@@ -511,6 +520,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 }
 
+// PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
 	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
@@ -619,7 +629,7 @@ func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMin
 	for {
 		select {
 		case <-timeout:
-			return errors.New(fmt.Sprintf("timeout after %d minutes waiting for %s with condition %s=%s", timeoutInMins, resourceURL, key, val))
+			return fmt.Errorf("timeout after %d minutes waiting for %s with condition %s=%s", timeoutInMins, resourceURL, key, val)
 		case <-tick:
 			resp, _ := c.makeHTTPRequest("GET", resourceURL, nil)
 			if resp != nil {
