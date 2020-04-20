@@ -17,9 +17,25 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"runtime"
 
+	"github.com/gookit/color"
+	"github.com/netapp/cake/pkg/config/types"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
+
+var (
+	red    = color.New(color.FgRed)
+	blue   = color.New(color.FgBlue)
+	green  = color.New(color.FgGreen)
+	yellow = color.New(color.FgYellow)
+)
+
+var configFile string
 
 // genconfigCmd represents the genconfig command
 var genconfigCmd = &cobra.Command{
@@ -32,7 +48,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("genconfig called")
+		runEasyConfig()
 	},
 }
 
@@ -48,4 +64,96 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// genconfigCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func runEasyConfig() {
+	var spec = &types.ConfigSpec{}
+	configure(spec)
+	writeConfig(spec)
+}
+
+func cakeBaseDirPath() string {
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf("%s/.cake", os.Getenv("USERPROFILE"))
+	}
+
+	return fmt.Sprintf("%s/.cake", os.Getenv("HOME"))
+}
+
+func writeConfig(spec *types.ConfigSpec) {
+	var configOut []byte
+	var err error
+
+	writeSpec := *spec
+
+	if configOut, err = yaml.Marshal(writeSpec); err != nil {
+		log.Fatalln(err)
+	}
+
+	configFile := getConfigFile(spec.RegionName)
+
+	err = writeFile(configFile, configOut, 0644)
+	if err != nil {
+		log.Println(fmt.Sprintf("Unable to save region config for later use, %s", err.Error()))
+		return
+	}
+}
+
+func writeFile(configFile string, contents []byte, permissionCode os.FileMode) error {
+	if permissionCode == 0 {
+		permissionCode = 0644
+	}
+
+	if err := ioutil.WriteFile(configFile, contents, permissionCode); err != nil {
+		return fmt.Errorf("unable to write config file, %v", err)
+	}
+
+	return nil
+}
+
+func getConfigFile(regionName string) string {
+	if configFile != "" {
+		return configFile
+	}
+
+	if err := createConfigDirectory(regionName); err != nil {
+		log.Fatalf("Unable to create directory, %v", err)
+	}
+
+	basePath := cakeBaseDirPath()
+
+	return fmt.Sprintf("%s/%s/config.yaml", basePath, regionName)
+}
+
+func createConfigDirectory(directoryName string) error {
+	basePath := cakeBaseDirPath()
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		err = os.Mkdir(basePath, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
+	fullPath := fmt.Sprintf("%s/%s", basePath, directoryName)
+
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		err = os.Mkdir(fullPath, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func configure(spec *types.ConfigSpec) {
+	fmt.Println(fmt.Sprintf("%s DHCP will be replaced in future versions with internal IP services or a third party IPAM provider\n", yellow.Render("Note:")))
+
+	// fail fast if we can't connect to specified vSphere
+	if err := collectVsphereInformation(spec); err != nil {
+		log.Fatalln(err)
+	}
+
+	collectNetworkInformation(spec)
+	collectAdditionalConfiguration(spec)
+	writeConfig(spec)
 }

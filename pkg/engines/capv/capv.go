@@ -3,12 +3,12 @@ package capv
 import (
 	"os"
 
-	"github.com/netapp/cake/pkg/cluster-engine/provisioner"
+	"github.com/netapp/cake/pkg/engines"
 	"github.com/netapp/cake/pkg/cmds"
 )
 
 // NewMgmtCluster creates a new cluster interface with a full config from the client
-func NewMgmtCluster(clusterConfig MgmtCluster) provisioner.Cluster {
+func NewMgmtCluster(clusterConfig MgmtCluster) engines.Cluster {
 	mc := new(MgmtCluster)
 	mc = &clusterConfig
 	mc.events = make(chan interface{})
@@ -22,7 +22,7 @@ func NewMgmtCluster(clusterConfig MgmtCluster) provisioner.Cluster {
 
 // MgmtCluster spec for CAPV
 type MgmtCluster struct {
-	provisioner.MgmtCluster `yaml:",inline" mapstructure:",squash"`
+	engines.MgmtCluster `yaml:",inline" mapstructure:",squash"`
 	Vsphere                 `yaml:",inline" mapstructure:",squash"`
 	Addons                  Addons `yaml:"Addons"`
 	events                  chan interface{}
@@ -55,7 +55,7 @@ type Solidfire struct {
 }
 
 type Observability struct {
-	Enable          bool   `yaml:"Enabled"`
+	Enable          bool   `yaml:"Enable"`
 	ArchiveLocation string `yaml:"ArchiveLocation"`
 }
 

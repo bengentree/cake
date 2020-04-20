@@ -1,13 +1,20 @@
-package provisioner
+package engines
 
 // Cluster interface for deploying K8s clusters
 type Cluster interface {
+	// CreateBootstrap sets up the boostrap cluster
 	CreateBootstrap() error
+	// InstallControlPlane puts the control plane on the boostrap cluster
 	InstallControlPlane() error
+	// CreatePermanent provisions the permanent management cluster
 	CreatePermanent() error
+	// PivotControlPlane moves the control plane from bootstrap to permanent management cluster
 	PivotControlPlane() error
+	// InstallAddons will install any addons into the permanent management cluster
 	InstallAddons() error
+	// RequiredCommands returns the command like binaries need to run the engine
 	RequiredCommands() []string
+	// Events are messages from the implementation
 	Events() chan interface{}
 }
 

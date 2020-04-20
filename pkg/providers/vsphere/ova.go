@@ -320,5 +320,3 @@ func removeNICs(ctx context.Context, vm *object.VirtualMachine) error {
 
 	return nil
 }
-
-

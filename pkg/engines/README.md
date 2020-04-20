@@ -21,7 +21,7 @@ make cluster-engine
 ## Usage
 
 ```bash
-cluster-engine capv --config pkg/cluster-engine/cluster-engine.yaml.example
+cluster-engine capv --config pkg/engines/cluster-engine.yaml.example
 ```
 
 ## Contributing

@@ -24,7 +24,23 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+type settings struct {
+	config                   string
+	vCenterURL               string
+	vCenterUser              string
+	vCenterPassword          string
+	managementClusterPodCIDR string
+	managementClusterCIDR    string
+	disableCleanup           bool
+	disablePreflight         bool
+	logLevel                 string
+}
+
+var (
+	cliSettings settings
+	envSettings settings
+	cfgFile     string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{

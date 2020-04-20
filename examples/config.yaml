@@ -1,0 +1,17 @@
+Provider: ""
+VCenterURL: https://10.117.227.72
+VCenterUser: administrator@vsphere.local
+VCenterPassword: MyPass!
+DatacenterID: datacenter-2
+ResourcePoolID: resgroup-8
+DatastoreID: datastore-11
+ManagementNetworkID: dvportgroup-234
+ManagementNetworkName: HCI_NKS_Management_01
+WorkloadNetworkID: dvportgroup-234
+WorkloadNetworkName: HCI_NKS_Management_01
+StorageNetworkID: ""
+StorageNetworkName: ""
+RegionName: cake-1
+OrganizationID: ""
+CloudCentralKey: ""
+Configuration: {}

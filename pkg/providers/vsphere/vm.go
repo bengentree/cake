@@ -2,15 +2,17 @@ package vsphere
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/netapp/cake/pkg/platform/vsphere/cloudinit"
+	"github.com/netapp/cake/pkg/providers/vsphere/cloudinit"
 	log "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+// CloneTemplate creates a VM from a template
 func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, bootScript, publicKey, osUser string) (*object.VirtualMachine, error) {
 
 	// give whole clone process a 10 minute timeout
@@ -99,6 +101,7 @@ func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, b
 	return vm, nil
 }
 
+// DeleteVM deletes a VM
 func DeleteVM(vm *object.VirtualMachine) error {
 	ctx := context.TODO()
 
