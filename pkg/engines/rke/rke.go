@@ -11,9 +11,9 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/netapp/cake/pkg/cluster-engine/provisioner"
-	"github.com/netapp/cake/pkg/cluster-engine/provisioner/capv"
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/engines"
+	"github.com/netapp/cake/pkg/engines/capv"
 	"github.com/prometheus/common/log"
 	"github.com/rancher/norman/clientbase"
 	rTypes "github.com/rancher/norman/types"
@@ -43,7 +43,7 @@ func init() {
 }
 
 // NewMgmtCluster creates a new cluster interface
-func NewMgmtCluster(controlPlaneMachineCount, workerMachineCount, clustername string) provisioner.Cluster {
+func NewMgmtCluster(controlPlaneMachineCount, workerMachineCount, clustername string) engines.Cluster {
 	mc := new(MgmtCluster)
 	mc.ClusterName = clustername
 	mc.ControlPlaneMachineCount = controlPlaneMachineCount
@@ -57,7 +57,7 @@ func NewMgmtCluster(controlPlaneMachineCount, workerMachineCount, clustername st
 }
 
 // NewMgmtClusterFullConfig creates a new cluster interface with a full config from the client
-func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) provisioner.Cluster {
+func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 	mc := new(MgmtCluster)
 	mc = &clusterConfig
 	mc.events = make(chan interface{})
