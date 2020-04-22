@@ -67,27 +67,27 @@ type MgmtCluster struct {
 	clusterURL          string
 	rancherClient       *v3.Client
 	BootstrapIP         string `yaml:"BootstrapIP"`
-	dockerCli			dockerCmds
-	osCli				genericCmds
+	dockerCli           dockerCmds
+	osCli               genericCmds
 }
 
 type dockerCmds interface {
 	NewEnvClient() (*client.Client, error)
-	ContainerCreate(cli *client.Client, ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
-	ContainerStart(cli *client.Client, ctx context.Context, containerID string, options types.ContainerStartOptions) error
+	ContainerCreate(ctx context.Context, cli *client.Client, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
+	ContainerStart(ctx context.Context, cli *client.Client, containerID string, options types.ContainerStartOptions) error
 }
 
-type dockerCli struct {}
+type dockerCli struct{}
 
 func (dockerCli) NewEnvClient() (*client.Client, error) {
 	return client.NewEnvClient()
 }
 
-func (dockerCli) ContainerCreate(cli *client.Client, ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+func (dockerCli) ContainerCreate(ctx context.Context, cli *client.Client, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
 	return cli.ContainerCreate(ctx, config, hostConfig, networkingConfig, containerName)
 }
 
-func (dockerCli) ContainerStart(cli *client.Client, ctx context.Context, containerID string, options types.ContainerStartOptions) error {
+func (dockerCli) ContainerStart(ctx context.Context, cli *client.Client, containerID string, options types.ContainerStartOptions) error {
 	return cli.ContainerStart(ctx, containerID, options)
 }
 
@@ -95,7 +95,7 @@ type genericCmds interface {
 	GenericExecute(envs map[string]string, name string, args []string, ctx *context.Context) error
 }
 
-type osCli struct {}
+type osCli struct{}
 
 func (osCli) GenericExecute(envs map[string]string, name string, args []string, ctx *context.Context) error {
 	return cmds.GenericExecute(envs, name, args, ctx)
@@ -162,7 +162,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 
 	portBinding := nat.PortMap{containerHTTPPort: []nat.PortBinding{hostBinding}, containerHTTPSPort: []nat.PortBinding{hostBinding2}}
 
-	resp, err := c.dockerCli.ContainerCreate(cli, ctx, &container.Config{
+	resp, err := c.dockerCli.ContainerCreate(ctx, cli, &container.Config{
 		Image: imageName,
 		ExposedPorts: nat.PortSet{
 			"80/tcp":  struct{}{},
@@ -179,7 +179,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	}
 
 	c.events <- capv.Event{EventType: "progress", Event: "docker run rancher"}
-	if err = c.dockerCli.ContainerStart(cli, ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err = c.dockerCli.ContainerStart(ctx, cli, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
 

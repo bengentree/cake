@@ -18,15 +18,15 @@ import (
 func TestMgmtCluster_CreateBootstrap(t *testing.T) {
 	tests := []struct {
 		name    string
-		docker 	dockerCmds
-		os 		genericCmds
+		docker  dockerCmds
+		os      genericCmds
 		wantErr bool
 	}{
 		{"succeeds", new(mockDockerCmds), new(mockOSCmds), false},
-		{"docker client error", newMockDockerCmds(errors.New("unable to create client"), nil, nil) , new(mockOSCmds), true},
+		{"docker client error", newMockDockerCmds(errors.New("unable to create client"), nil, nil), new(mockOSCmds), true},
 		{"docker pull error", new(mockDockerCmds), &mockOSCmds{errors.New("docker cmd not found")}, true},
-		{"docker create container error", newMockDockerCmds(nil, errors.New("unable to create image"), nil) , new(mockOSCmds), true},
-		{"docker run container error", newMockDockerCmds(nil, nil, errors.New("unable to start container")) , new(mockOSCmds), true},
+		{"docker create container error", newMockDockerCmds(nil, errors.New("unable to create image"), nil), new(mockOSCmds), true},
+		{"docker run container error", newMockDockerCmds(nil, nil, errors.New("unable to start container")), new(mockOSCmds), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -38,8 +38,8 @@ func TestMgmtCluster_CreateBootstrap(t *testing.T) {
 				clusterURL:    "",
 				rancherClient: nil,
 				BootstrapIP:   "",
-				dockerCli: 		tt.docker,
-				osCli: 			tt.os,
+				dockerCli:     tt.docker,
+				osCli:         tt.os,
 			}
 			go mockEventsReceiver(c)
 			if err := c.CreateBootstrap(); (err != nil) != tt.wantErr {
@@ -279,10 +279,10 @@ func TestNewMgmtClusterFullConfig(t *testing.T) {
 	}
 }
 
-type mockDockerCmds struct{
+type mockDockerCmds struct {
 	newCliErr error
 	createErr error
-	startErr error
+	startErr  error
 }
 
 func newMockDockerCmds(newCliErr, createErr, startEerr error) *mockDockerCmds {
@@ -297,11 +297,11 @@ func (m mockDockerCmds) NewEnvClient() (*client.Client, error) {
 	return &client.Client{}, m.newCliErr
 }
 
-func (m mockDockerCmds) ContainerCreate(cli *client.Client, ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+func (m mockDockerCmds) ContainerCreate(ctx context.Context, cli *client.Client, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
 	return container.ContainerCreateCreatedBody{}, m.createErr
 }
 
-func (m mockDockerCmds) ContainerStart(cli *client.Client, ctx context.Context, containerID string, options types.ContainerStartOptions) error {
+func (m mockDockerCmds) ContainerStart(ctx context.Context, cli *client.Client, containerID string, options types.ContainerStartOptions) error {
 	return m.startErr
 }
 
