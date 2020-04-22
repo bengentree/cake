@@ -66,7 +66,7 @@ func (m MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
 		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
 		"VSPHERE_SSH_AUTHORIZED_KEY": cf.SSH.AuthorizedKey,
 		"KUBECONFIG":                 kubeConfig,
-		"GITHUB_TOKEN":               "963945a784b140f3a945b702f133d8f9645fadb3",
+		//"GITHUB_TOKEN":               "",
 	}
 	args = []string{
 		"init",
