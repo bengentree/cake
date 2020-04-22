@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/netapp/cake/pkg/cmds"
@@ -52,6 +53,8 @@ func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 		cmds.FileLogLocation = mc.LogFile
 		os.Truncate(mc.LogFile, 0)
 	}
+	mc.dockerCli = new(dockerCli)
+	mc.osCli = new(osCli)
 	return mc
 }
 
@@ -64,6 +67,38 @@ type MgmtCluster struct {
 	clusterURL          string
 	rancherClient       *v3.Client
 	BootstrapIP         string `yaml:"BootstrapIP"`
+	dockerCli			dockerCmds
+	osCli				genericCmds
+}
+
+type dockerCmds interface {
+	NewEnvClient() (*client.Client, error)
+	ContainerCreate(cli *client.Client, ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
+	ContainerStart(cli *client.Client, ctx context.Context, containerID string, options types.ContainerStartOptions) error
+}
+
+type dockerCli struct {}
+
+func (dockerCli) NewEnvClient() (*client.Client, error) {
+	return client.NewEnvClient()
+}
+
+func (dockerCli) ContainerCreate(cli *client.Client, ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+	return cli.ContainerCreate(ctx, config, hostConfig, networkingConfig, containerName)
+}
+
+func (dockerCli) ContainerStart(cli *client.Client, ctx context.Context, containerID string, options types.ContainerStartOptions) error {
+	return cli.ContainerStart(ctx, containerID, options)
+}
+
+type genericCmds interface {
+	GenericExecute(envs map[string]string, name string, args []string, ctx *context.Context) error
+}
+
+type osCli struct {}
+
+func (osCli) GenericExecute(envs map[string]string, name string, args []string, ctx *context.Context) error {
+	return cmds.GenericExecute(envs, name, args, ctx)
 }
 
 // InstallAddons to HA RKE cluster
@@ -83,7 +118,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	var err error
 
 	c.events <- capv.Event{EventType: "progress", Event: "docker pull rancher"}
-	cli, err := client.NewEnvClient()
+	cli, err := c.dockerCli.NewEnvClient()
 	if err != nil {
 		return err
 	}
@@ -100,7 +135,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 		"pull",
 		imageName,
 	}
-	err = cmds.GenericExecute(nil, string(docker), args, nil)
+	err = c.osCli.GenericExecute(nil, string(docker), args, nil)
 	if err != nil {
 		return err
 	}
@@ -127,7 +162,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 
 	portBinding := nat.PortMap{containerHTTPPort: []nat.PortBinding{hostBinding}, containerHTTPSPort: []nat.PortBinding{hostBinding2}}
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
+	resp, err := c.dockerCli.ContainerCreate(cli, ctx, &container.Config{
 		Image: imageName,
 		ExposedPorts: nat.PortSet{
 			"80/tcp":  struct{}{},
@@ -144,7 +179,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	}
 
 	c.events <- capv.Event{EventType: "progress", Event: "docker run rancher"}
-	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err = c.dockerCli.ContainerStart(cli, ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
 

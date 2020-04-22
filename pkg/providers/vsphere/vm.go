@@ -2,7 +2,6 @@ package vsphere
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
