@@ -1,41 +1,82 @@
 package engines
 
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config"
+)
+
 // Cluster interface for deploying K8s clusters
 type Cluster interface {
 	// CreateBootstrap sets up the boostrap cluster
-	CreateBootstrap() error
+	CreateBootstrap(*Spec) error
 	// InstallControlPlane puts the control plane on the boostrap cluster
-	InstallControlPlane() error
+	InstallControlPlane(*Spec) error
 	// CreatePermanent provisions the permanent management cluster
-	CreatePermanent() error
+	CreatePermanent(*Spec) error
 	// PivotControlPlane moves the control plane from bootstrap to permanent management cluster
-	PivotControlPlane() error
+	PivotControlPlane(*Spec) error
 	// InstallAddons will install any addons into the permanent management cluster
-	InstallAddons() error
+	InstallAddons(*Spec) error
 	// RequiredCommands returns the command like binaries need to run the engine
-	RequiredCommands() []string
+	RequiredCommands(*Spec) []string
+	// SpecConvert changes the unmarshalled map into a provider specifc struct
+	SpecConvert(*Spec) error
 	// Events are messages from the implementation
-	Events() chan interface{}
+	Events(*Spec) chan config.Event
 }
 
-// MgmtCluster spec
-type MgmtCluster struct {
-	K8s                      `yaml:",inline" mapstructure:",squash"`
-	LoadBalancerTemplate     string `yaml:"LoadBalancerTemplate"`
-	NodeTemplate             string `yaml:"NodeTemplate"`
-	SSHAuthorizedKey         string `yaml:"SshAuthorizedKey"`
-	ControlPlaneMachineCount string `yaml:"ControlPlaneMachineCount"`
-	WorkerMachineCount       string `yaml:"WorkerMachineCount"`
-	LogFile                  string `yaml:"LogFile"`
+// Spec for the Engine
+type Spec struct {
+	config.Spec `yaml:",inline" json:",inline" mapstructure:",squash"`
+	EventStream chan config.Event
 }
 
-// K8s spec
-type K8s struct {
-	ClusterName           string `yaml:"ClusterName"`
-	CapiSpec              string `yaml:"CapiSpec"`
-	KubernetesVersion     string `yaml:"KubernetesVersion"`
-	Namespace             string `yaml:"Namespace"`
-	Kubeconfig            string `yaml:"Kubeconfig"`
-	KubernetesPodCidr     string `yaml:"KubernetesPodCidr"`
-	KubernetesServiceCidr string `yaml:"KubernetesServiceCidr"`
+// Run provider bootstrap process
+func (s *Spec) Run() error {
+	if s.LogFile != "" {
+		cmds.FileLogLocation = s.LogFile
+		os.Truncate(s.LogFile, 0)
+	}
+
+	err := s.Engine.(Cluster).SpecConvert(s)
+	if err != nil {
+		return err
+	}
+	//fmt.Printf("inside RUN: %+v\n", s)
+
+	exist := s.Engine.(Cluster).RequiredCommands(s)
+	if len(exist) > 0 {
+		return fmt.Errorf("the following commands were not found in $PATH: [%v]", strings.Join(exist, ", "))
+	}
+
+	err = s.Engine.(Cluster).CreateBootstrap(s)
+	if err != nil {
+		return err
+	}
+
+	err = s.Engine.(Cluster).InstallControlPlane(s)
+	if err != nil {
+		return err
+	}
+
+	err = s.Engine.(Cluster).CreatePermanent(s)
+	if err != nil {
+		return err
+	}
+
+	err = s.Engine.(Cluster).PivotControlPlane(s)
+	if err != nil {
+		return err
+	}
+
+	err = s.Engine.(Cluster).InstallAddons(s)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

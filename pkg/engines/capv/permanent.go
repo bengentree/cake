@@ -4,31 +4,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/engines"
 
 	v1 "k8s.io/api/core/v1"
 )
 
 // CreatePermanent creates the permanent CAPv management cluster
-func (m *MgmtCluster) CreatePermanent() error {
+func (m MgmtCluster) CreatePermanent(spec *engines.Spec) error {
 	var err error
 	var capiConfig string
+	cf := new(ConfigFile)
+	cf.Spec = *spec
+	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	kubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
-	if m.Addons.Solidfire.Enable {
-		err = injectTridentPrereqs(m.ClusterName, m.StorageNetwork, kubeConfig, nil)
+	kubeConfig := filepath.Join(home, ConfigDir, cf.ClusterName, bootstrapKubeconfig)
+	if cf.Addons.Solidfire.Enable {
+		err = injectTridentPrereqs(cf.ClusterName, cf.StorageNetwork, kubeConfig, nil)
 		if err != nil {
 			return err
 		}
-		capiConfig = filepath.Join(home, ConfigDir, m.ClusterName, m.ClusterName+"-final"+".yaml")
+		capiConfig = filepath.Join(home, ConfigDir, cf.ClusterName, cf.ClusterName+"-final"+".yaml")
 	} else {
-		capiConfig = filepath.Join(home, ConfigDir, m.ClusterName, m.ClusterName+"-base"+".yaml")
+		capiConfig = filepath.Join(home, ConfigDir, cf.ClusterName, cf.ClusterName+"-base"+".yaml")
 	}
 
 	envs := map[string]string{
@@ -49,19 +53,11 @@ func (m *MgmtCluster) CreatePermanent() error {
 	}
 	timeout := 15 * time.Minute
 	grepString := "Running"
-	controlCount, err := strconv.Atoi(m.ControlPlaneMachineCount)
+	grepNum := cf.ControlPlaneCount + cf.WorkerCount
 	if err != nil {
 		return err
 	}
-	workerCount, err := strconv.Atoi(m.WorkerMachineCount)
-	if err != nil {
-		return err
-	}
-	grepNum := controlCount + workerCount
-	if err != nil {
-		return err
-	}
-	err = kubeRetry(nil, args, timeout, grepString, grepNum, nil, m.events)
+	err = kubeRetry(nil, args, timeout, grepString, grepNum, nil, cf.EventStream)
 	if err != nil {
 		return err
 	}
@@ -70,21 +66,21 @@ func (m *MgmtCluster) CreatePermanent() error {
 		"--output=json",
 		"get",
 		"secret",
-		m.ClusterName + "-kubeconfig",
+		cf.ClusterName + "-kubeconfig",
 	}
 	getKubeconfig, err := kubeGet(envs, args, v1.Secret{}, nil)
 	if err != nil {
 		return fmt.Errorf("get secret error: %v", err.Error())
 	}
 	workloadClusterKubeconfig := getKubeconfig.(v1.Secret).Data["value"]
-	m.Kubeconfig = string(workloadClusterKubeconfig)
-	err = writeToDisk(m.ClusterName, "kubeconfig", workloadClusterKubeconfig, 0644)
+	cf.Kubeconfig = string(workloadClusterKubeconfig)
+	err = writeToDisk(cf.ClusterName, "kubeconfig", workloadClusterKubeconfig, 0644)
 	if err != nil {
 		return err
 	}
 
 	// apply cni
-	permanentKubeconfig := filepath.Join(home, ConfigDir, m.ClusterName, "kubeconfig")
+	permanentKubeconfig := filepath.Join(home, ConfigDir, cf.ClusterName, "kubeconfig")
 	envs = map[string]string{
 		"KUBECONFIG": permanentKubeconfig,
 	}
@@ -103,7 +99,7 @@ func (m *MgmtCluster) CreatePermanent() error {
 	}
 	grepString = "Ready"
 
-	err = kubeRetry(envs, args, timeout, grepString, grepNum, nil, m.events)
+	err = kubeRetry(envs, args, timeout, grepString, grepNum, nil, cf.EventStream)
 	if err != nil {
 		return err
 	}

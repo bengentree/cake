@@ -3,22 +3,27 @@ package capv
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/engines"
 )
 
 // PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster
-func (m *MgmtCluster) PivotControlPlane() error {
+func (m MgmtCluster) PivotControlPlane(spec *engines.Spec) error {
 	var err error
+	cf := new(ConfigFile)
+	cf.Spec = *spec
+	cf.MgmtCluster = spec.Provider.(MgmtCluster)
 
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, VsphereCredsSecret.Name)
-	permanentKubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, "kubeconfig")
-	bootstrapKubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
+	secretSpecLocation := filepath.Join(home, ConfigDir, cf.ClusterName, VsphereCredsSecret.Name)
+	permanentKubeConfig := filepath.Join(home, ConfigDir, cf.ClusterName, "kubeconfig")
+	bootstrapKubeConfig := filepath.Join(home, ConfigDir, cf.ClusterName, bootstrapKubeconfig)
 	envs := map[string]string{
 		"KUBECONFIG": permanentKubeConfig,
 	}
@@ -33,26 +38,28 @@ func (m *MgmtCluster) PivotControlPlane() error {
 	args = []string{
 		"create",
 		"ns",
-		m.Namespace,
+		cf.Namespace,
 	}
 	err = cmds.GenericExecute(envs, string(kubectl), args, nil)
 	if err != nil {
 		return err
 	}
-
+	nodeTemplate := strings.Split(filepath.Base(cf.OVA.NodeTemplate), ".ova")[0]
+	LoadBalancerTemplate := strings.Split(filepath.Base(cf.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
-		"VSPHERE_PASSWORD":           m.VspherePassword,
-		"VSPHERE_USERNAME":           m.VsphereUsername,
-		"VSPHERE_SERVER":             m.VcenterServer,
-		"VSPHERE_DATACENTER":         m.Datacenter,
-		"VSPHERE_DATASTORE":          m.Datastore,
-		"VSPHERE_NETWORK":            m.ManagementNetwork,
-		"VSPHERE_RESOURCE_POOL":      m.ResourcePool,
-		"VSPHERE_FOLDER":             m.Folder,
-		"VSPHERE_TEMPLATE":           m.NodeTemplate,
-		"VSPHERE_HAPROXY_TEMPLATE":   m.LoadBalancerTemplate,
-		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSHAuthorizedKey,
+		"VSPHERE_PASSWORD":           cf.Password,
+		"VSPHERE_USERNAME":           cf.Username,
+		"VSPHERE_SERVER":             cf.URL,
+		"VSPHERE_DATACENTER":         cf.Datacenter,
+		"VSPHERE_DATASTORE":          cf.Datastore,
+		"VSPHERE_NETWORK":            cf.ManagementNetwork,
+		"VSPHERE_RESOURCE_POOL":      cf.ResourcePool,
+		"VSPHERE_FOLDER":             cf.Folder,
+		"VSPHERE_TEMPLATE":           nodeTemplate,
+		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
+		"VSPHERE_SSH_AUTHORIZED_KEY": cf.SSH.AuthorizedKey,
 		"KUBECONFIG":                 permanentKubeConfig,
+		"GITHUB_TOKEN":               "963945a784b140f3a945b702f133d8f9645fadb3",
 	}
 
 	args = []string{
@@ -74,7 +81,7 @@ func (m *MgmtCluster) PivotControlPlane() error {
 		"KubeadmControlPlane",
 		"--output=jsonpath='{.items[0].status.ready}'",
 	}
-	err = kubeRetry(envs, args, timeout, grepString, 1, nil, m.events)
+	err = kubeRetry(envs, args, timeout, grepString, 1, nil, cf.EventStream)
 	if err != nil {
 		return err
 	}

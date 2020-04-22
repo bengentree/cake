@@ -1,17 +1,17 @@
 package capv
 
 import (
-	"os"
-
+	"github.com/mitchellh/mapstructure"
+	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/engines"
-	"github.com/netapp/cake/pkg/cmds"
 )
 
+/*
 // NewMgmtCluster creates a new cluster interface with a full config from the client
 func NewMgmtCluster(clusterConfig MgmtCluster) engines.Cluster {
 	mc := new(MgmtCluster)
 	mc = &clusterConfig
-	mc.events = make(chan interface{})
+	mc.EventStream = make(chan config.Event)
 	if mc.LogFile != "" {
 		cmds.FileLogLocation = mc.LogFile
 		os.Truncate(mc.LogFile, 0)
@@ -19,48 +19,25 @@ func NewMgmtCluster(clusterConfig MgmtCluster) engines.Cluster {
 
 	return mc
 }
+*/
+
+type ConfigFile struct {
+	engines.Spec `yaml:",inline" json:",inline" mapstructure:",squash"`
+	MgmtCluster  `yaml:",inline" json:",inline" mapstructure:",squash"`
+}
 
 // MgmtCluster spec for CAPV
 type MgmtCluster struct {
-	engines.MgmtCluster `yaml:",inline" mapstructure:",squash"`
-	Vsphere                 `yaml:",inline" mapstructure:",squash"`
-	Addons                  Addons `yaml:"Addons"`
-	events                  chan interface{}
+	config.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
-type Vsphere struct {
-	Datacenter        string `yaml:"Datacenter"`
-	Datastore         string `yaml:"Datastore"`
-	Folder            string `yaml:"Folder"`
-	ManagementNetwork string `yaml:"ManagementNetwork"`
-	WorkloadNetwork   string `yaml:"WorkloadNetwork"`
-	StorageNetwork    string `yaml:"StorageNetwork"`
-	ResourcePool      string `yaml:"ResourcePool"`
-	VcenterServer     string `yaml:"VcenterServer"`
-	VsphereUsername   string `yaml:"VsphereUsername"`
-	VspherePassword   string `yaml:"VspherePassword"`
-}
-
-type Addons struct {
-	Solidfire     Solidfire     `yaml:"Solidfire"`
-	Observability Observability `yaml:"Observability"`
-}
-
-type Solidfire struct {
-	Enable   bool   `yaml:"Enable"`
-	MVIP     string `yaml:"MVIP"`
-	SVIP     string `yaml:"SVIP"`
-	User     string `yaml:"User"`
-	Password string `yaml:"Password"`
-}
-
-type Observability struct {
-	Enable          bool   `yaml:"Enable"`
-	ArchiveLocation string `yaml:"ArchiveLocation"`
-}
-
-// Event spec
-type Event struct {
-	EventType string
-	Event     string
+// SpecConvert makes the unmarshalled provider map a struct
+func (m MgmtCluster) SpecConvert(spec *engines.Spec) error {
+	var result MgmtCluster
+	err := mapstructure.Decode(spec.Provider, &result)
+	if err != nil {
+		return err
+	}
+	spec.Provider = result
+	return err
 }

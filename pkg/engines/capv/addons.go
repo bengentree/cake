@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config"
+	"github.com/netapp/cake/pkg/engines"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -15,19 +17,22 @@ const (
 )
 
 // InstallAddons installs any optional Addons to a management cluster
-func (m *MgmtCluster) InstallAddons() error {
+func (m MgmtCluster) InstallAddons(spec *engines.Spec) error {
 	var g errgroup.Group
+	cf := new(ConfigFile)
+	cf.Spec = *spec
+	cf.MgmtCluster = spec.Provider.(MgmtCluster)
 
 	g.Go(func() error {
-		if m.Addons.Solidfire.Enable {
-			return installTrident(m)
+		if cf.Addons.Solidfire.Enable {
+			return installTrident(cf)
 		}
 		return nil
 	})
 	g.Go(func() error {
-		if m.Addons.Observability.Enable {
+		if cf.Addons.Observability.Enable {
 
-			return installObservability(m)
+			return installObservability(cf)
 		}
 		return nil
 	})
@@ -35,8 +40,8 @@ func (m *MgmtCluster) InstallAddons() error {
 	return g.Wait()
 }
 
-func installObservability(m *MgmtCluster) error {
-	m.events <- Event{EventType: "progress", Event: "installing the observability addon"}
+func installObservability(m *ConfigFile) error {
+	m.EventStream <- config.Event{EventType: "progress", Event: "installing the observability addon"}
 	var err error
 
 	//targetDir, err := extractLocalArchive(m, dir)
@@ -62,12 +67,12 @@ func installObservability(m *MgmtCluster) error {
 		sed -i 's/prometheus.nks-system.svc.cluster.local:8080/prometheus-server.nks-system.svc.cluster.local/g' grafana/grafana-values.yaml
 		make all
 	*/
-	m.events <- Event{EventType: "progress", Event: "observability addon install complete"}
+	m.EventStream <- config.Event{EventType: "progress", Event: "observability addon install complete"}
 	return err
 }
 
-func installTrident(m *MgmtCluster) error {
-	m.events <- Event{EventType: "progress", Event: "installing the trident addon"}
+func installTrident(m *ConfigFile) error {
+	m.EventStream <- config.Event{EventType: "progress", Event: "installing the trident addon"}
 	var err error
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -124,7 +129,7 @@ func installTrident(m *MgmtCluster) error {
 	if err != nil {
 		return err
 	}
-	m.events <- Event{EventType: "progress", Event: "trident addon install complete"}
+	m.EventStream <- config.Event{EventType: "progress", Event: "trident addon install complete"}
 	return err
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config"
 
 	v1 "k8s.io/api/core/v1"
 	v3 "sigs.k8s.io/cluster-api-provider-vsphere/api/v1alpha3"
@@ -14,7 +15,7 @@ import (
 )
 
 // kubeRetry runs `kubectl` commands where the output doesnt need to be parsed or saved
-func kubeRetry(envs map[string]string, args []string, timeout time.Duration, grepString string, grepCount int, ctx *context.Context, events chan interface{}) error {
+func kubeRetry(envs map[string]string, args []string, timeout time.Duration, grepString string, grepCount int, ctx *context.Context, events chan config.Event) error {
 	var err error
 
 	c := cmds.NewCommandLine(envs, string(kubectl), args, ctx)
@@ -26,7 +27,7 @@ func kubeRetry(envs map[string]string, args []string, timeout time.Duration, gre
 		for {
 			select {
 			case e := <-event:
-				events <- Event{EventType: "progress", Event: e}
+				events <- config.Event{EventType: "progress", Event: e}
 			case <-done:
 				break
 			}

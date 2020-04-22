@@ -7,25 +7,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"strings"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/mitchellh/mapstructure"
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/engines"
-	"github.com/netapp/cake/pkg/engines/capv"
 	"github.com/prometheus/common/log"
 	"github.com/rancher/norman/clientbase"
 	rTypes "github.com/rancher/norman/types"
 	v3 "github.com/rancher/types/client/management/v3"
 	v3public "github.com/rancher/types/client/management/v3public"
 	v3project "github.com/rancher/types/client/project/v3"
-	"net/http"
-	"net/http/httputil"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type requiredCmd string
@@ -42,6 +42,7 @@ func init() {
 	RequiredCommands.AddCommand(d.CommandName, d)
 }
 
+/*
 // NewMgmtClusterFullConfig creates a new cluster interface with a full config from the client
 func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 	mc := new(MgmtCluster)
@@ -53,35 +54,46 @@ func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 	}
 	return mc
 }
+*/
 
 // MgmtCluster spec for RKE
 type MgmtCluster struct {
-	engines.MgmtCluster `yaml:",inline" mapstructure:",squash"`
-	capv.Vsphere        `yaml:",inline" mapstructure:",squash"`
-	events              chan interface{}
-	token               string
-	clusterURL          string
-	rancherClient       *v3.Client
-	BootstrapIP         string `yaml:"BootstrapIP"`
+	config.Spec            `yaml:",inline" mapstructure:",squash"`
+	config.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
+	token                  string
+	clusterURL             string
+	rancherClient          *v3.Client
+	BootstrapIP            string `yaml:"BootstrapIP"`
+}
+
+// SpecConvert makes the unmarshalled provider map a struct
+func (c MgmtCluster) SpecConvert(spec *engines.Spec) error {
+	var result MgmtCluster
+	err := mapstructure.Decode(spec.Provider, &result)
+	if err != nil {
+		return err
+	}
+	spec.Provider = result
+	return err
 }
 
 // InstallAddons to HA RKE cluster
-func (c MgmtCluster) InstallAddons() error {
+func (c MgmtCluster) InstallAddons(spec *engines.Spec) error {
 	log.Infof("TODO: install addons")
 	return nil
 }
 
 // RequiredCommands provides validation for required commands
-func (c MgmtCluster) RequiredCommands() []string {
+func (c MgmtCluster) RequiredCommands(spec *engines.Spec) []string {
 	log.Infof("TODO: provide required commands")
 	return nil
 }
 
 // CreateBootstrap deploys a rancher container as single node RKE cluster
-func (c MgmtCluster) CreateBootstrap() error {
+func (c MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
 	var err error
 
-	c.events <- capv.Event{EventType: "progress", Event: "docker pull rancher"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "docker pull rancher"}
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return err
@@ -142,7 +154,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 		return err
 	}
 
-	c.events <- capv.Event{EventType: "progress", Event: "docker run rancher"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "docker run rancher"}
 	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
@@ -151,7 +163,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 }
 
 // InstallControlPlane configures a single node RKE cluster
-func (c *MgmtCluster) InstallControlPlane() error {
+func (c MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
 	// TODO: Remove TLS hack
 	// Get "https://localhost/": x509: certificate signed by unknown authority
 	dt := http.DefaultTransport
@@ -163,13 +175,13 @@ func (c *MgmtCluster) InstallControlPlane() error {
 		dt.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
 	}
 
-	c.events <- capv.Event{EventType: "progress", Event: "wait for rancher API"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "wait for rancher API"}
 	err := waitForRancherAPI()
 	if err != nil {
 		return err
 	}
 
-	c.events <- capv.Event{EventType: "progress", Event: "configure standalone rancher"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "configure standalone rancher"}
 
 	// Roughly the sequence followed for single node rancher server config:
 	// https://forums.rancher.com/t/automating-rancher-2-x-installation-and-configuration/11454/2
@@ -359,10 +371,10 @@ func newVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 }
 
 // CreatePermanent deploys HA RKE cluster to vSphere
-func (c *MgmtCluster) CreatePermanent() error {
-	c.events <- capv.Event{EventType: "progress", Event: "configure RKE management cluster"}
+func (c MgmtCluster) CreatePermanent(spec *engines.Spec) error {
+	spec.EventStream <- config.Event{EventType: "progress", Event: "configure RKE management cluster"}
 	// POST https://localhost/v3/cloudcredential
-	body := NewVsphereCloudCredential(c.VcenterServer, c.VsphereUsername, c.VspherePassword)
+	body := NewVsphereCloudCredential(c.URL, c.Username, c.Password)
 	resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/cloudcredential", body)
 	if err != nil {
 		return err
@@ -464,16 +476,16 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	c.events <- capv.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
 	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 }
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
-func (c MgmtCluster) PivotControlPlane() error {
-	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+func (c MgmtCluster) PivotControlPlane(spec *engines.Spec) error {
+	spec.EventStream <- config.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
 
-	c.events <- capv.Event{EventType: "progress", Event: "install production rancher server"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "install production rancher server"}
 
 	catalogReq := &v3.Catalog{
 		Branch:   "master",
@@ -489,7 +501,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	log.Info("Added rancher helm chart")
 
-	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
 
 	// I don't know if setting the default project ID is necessary. The UI did it so I added it here as well
@@ -561,13 +573,13 @@ func (c MgmtCluster) PivotControlPlane() error {
 	rancherAppURL := appResp.Links["self"]
 	log.Infof("Rancher app URL: ", rancherAppURL)
 
-	c.events <- capv.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
+	spec.EventStream <- config.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
 	return c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
 }
 
 // Events returns the channel of progress messages
-func (c *MgmtCluster) Events() chan interface{} {
-	return c.events
+func (c MgmtCluster) Events(spec *engines.Spec) chan config.Event {
+	return spec.EventStream
 }
 
 func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMins int) error {
@@ -607,16 +619,20 @@ func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMin
 }
 
 func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
-	mgmtCount, err := strconv.ParseInt(c.ControlPlaneMachineCount, 10, 64)
-	if err != nil {
-		log.Warnf("Unable to parse ControlPlaneMachineCount, defaulting to 1: %s", err)
-		mgmtCount = 1
-	}
-	workerCount, err := strconv.ParseInt(c.WorkerMachineCount, 10, 64)
-	if err != nil {
-		log.Warnf("Unable to parse WorkerMachineCount, defaulting to 2: %s", err)
-		workerCount = 2
-	}
+	mgmtCount := int64(c.ControlPlaneCount)
+	workerCount := int64(c.WorkerCount)
+	/*
+		mgmtCount, err := strconv.ParseInt(c.ControlPlaneCount, 10, 64)
+		if err != nil {
+			log.Warnf("Unable to parse ControlPlaneMachineCount, defaulting to 1: %s", err)
+			mgmtCount = 1
+		}
+		workerCount, err := strconv.ParseInt(c.WorkerMachineCount, 10, 64)
+		if err != nil {
+			log.Warnf("Unable to parse WorkerMachineCount, defaulting to 2: %s", err)
+			workerCount = 2
+		}
+	*/
 	nodePools := []struct {
 		prefix string
 		count  int64

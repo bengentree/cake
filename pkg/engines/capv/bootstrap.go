@@ -5,13 +5,18 @@ import (
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config"
+	"github.com/netapp/cake/pkg/engines"
 )
 
 // CreateBootstrap creates the temporary CAPv bootstrap cluster
-func (m *MgmtCluster) CreateBootstrap() error {
+func (m MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
 	var err error
+	cf := new(ConfigFile)
+	cf.Spec = *spec
+	cf.MgmtCluster = spec.Provider.(MgmtCluster)
 
-	m.events <- Event{EventType: "progress", Event: "kind create cluster (bootstrap cluster)"}
+	cf.EventStream <- config.Event{EventType: "progress", Event: "kind create cluster (bootstrap cluster)"}
 
 	args := []string{
 		"create",
@@ -22,7 +27,7 @@ func (m *MgmtCluster) CreateBootstrap() error {
 		return err
 	}
 
-	m.events <- Event{EventType: "progress", Event: "getting and writing bootstrap cluster kubeconfig to disk"}
+	cf.EventStream <- config.Event{EventType: "progress", Event: "getting and writing bootstrap cluster kubeconfig to disk"}
 	args = []string{
 		"get",
 		"kubeconfig",
@@ -33,13 +38,13 @@ func (m *MgmtCluster) CreateBootstrap() error {
 		return fmt.Errorf("err: %v, stderr: %v", err, string(stderr))
 	}
 
-	err = writeToDisk(m.ClusterName, bootstrapKubeconfig, []byte(stdout), 0644)
+	err = writeToDisk(cf.ClusterName, bootstrapKubeconfig, []byte(stdout), 0644)
 	if err != nil {
 		return err
 	}
 
 	// TODO wait for cluster components to be running
-	m.events <- Event{EventType: "progress", Event: "sleeping 20 seconds, need to fix this"}
+	cf.EventStream <- config.Event{EventType: "progress", Event: "sleeping 20 seconds, need to fix this"}
 	time.Sleep(20 * time.Second)
 
 	return err

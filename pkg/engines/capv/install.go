@@ -4,32 +4,39 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config"
+	"github.com/netapp/cake/pkg/engines"
 )
 
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
-func (m *MgmtCluster) InstallControlPlane() error {
+func (m MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
 	var err error
+	cf := new(ConfigFile)
+	cf.Spec = *spec
+	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, VsphereCredsSecret.Name)
+	secretSpecLocation := filepath.Join(home, ConfigDir, cf.ClusterName, VsphereCredsSecret.Name)
 
 	secretSpecContents := fmt.Sprintf(
 		VsphereCredsSecret.Contents,
-		m.VsphereUsername,
-		m.VspherePassword,
+		cf.Username,
+		cf.Password,
 	)
-	err = writeToDisk(m.ClusterName, VsphereCredsSecret.Name, []byte(secretSpecContents), 0644)
+	err = writeToDisk(cf.ClusterName, VsphereCredsSecret.Name, []byte(secretSpecContents), 0644)
 	if err != nil {
 		return err
 	}
 	time.Sleep(10 * time.Second)
 
-	kubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
+	kubeConfig := filepath.Join(home, ConfigDir, cf.ClusterName, bootstrapKubeconfig)
 	envs := map[string]string{
 		"KUBECONFIG": kubeConfig,
 	}
@@ -43,21 +50,23 @@ func (m *MgmtCluster) InstallControlPlane() error {
 		return err
 	}
 
-	m.events <- Event{EventType: "progress", Event: "init capi in the bootstrap cluster"}
+	cf.EventStream <- config.Event{EventType: "progress", Event: "init capi in the bootstrap cluster"}
+	nodeTemplate := strings.Split(filepath.Base(cf.OVA.NodeTemplate), ".ova")[0]
+	LoadBalancerTemplate := strings.Split(filepath.Base(cf.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
-		"VSPHERE_PASSWORD":           m.VspherePassword,
-		"VSPHERE_USERNAME":           m.VsphereUsername,
-		"VSPHERE_SERVER":             m.VcenterServer,
-		"VSPHERE_DATACENTER":         m.Datacenter,
-		"VSPHERE_DATASTORE":          m.Datastore,
-		"VSPHERE_NETWORK":            m.ManagementNetwork,
-		"VSPHERE_RESOURCE_POOL":      m.ResourcePool,
-		"VSPHERE_FOLDER":             m.Folder,
-		"VSPHERE_TEMPLATE":           m.NodeTemplate,
-		"VSPHERE_HAPROXY_TEMPLATE":   m.LoadBalancerTemplate,
-		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSHAuthorizedKey,
+		"VSPHERE_PASSWORD":           cf.Password,
+		"VSPHERE_USERNAME":           cf.Username,
+		"VSPHERE_SERVER":             cf.URL,
+		"VSPHERE_DATACENTER":         cf.Datacenter,
+		"VSPHERE_DATASTORE":          cf.Datastore,
+		"VSPHERE_NETWORK":            cf.ManagementNetwork,
+		"VSPHERE_RESOURCE_POOL":      cf.ResourcePool,
+		"VSPHERE_FOLDER":             cf.Folder,
+		"VSPHERE_TEMPLATE":           nodeTemplate,
+		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
+		"VSPHERE_SSH_AUTHORIZED_KEY": cf.SSH.AuthorizedKey,
 		"KUBECONFIG":                 kubeConfig,
-		"GITHUB_TOKEN":               "",
+		"GITHUB_TOKEN":               "963945a784b140f3a945b702f133d8f9645fadb3",
 	}
 	args = []string{
 		"init",
@@ -72,15 +81,15 @@ func (m *MgmtCluster) InstallControlPlane() error {
 	// TODO wait for CAPv deployment in k8s to be ready
 	time.Sleep(30 * time.Second)
 
-	m.events <- Event{EventType: "progress", Event: "writing CAPv spec file out"}
+	cf.EventStream <- config.Event{EventType: "progress", Event: "writing CAPv spec file out"}
 	args = []string{
 		"config",
 		"cluster",
-		m.ClusterName,
+		cf.ClusterName,
 		"--infrastructure=vsphere",
-		"--kubernetes-version=" + m.KubernetesVersion,
-		"--control-plane-machine-count=" + m.ControlPlaneMachineCount,
-		"--worker-machine-count=" + m.WorkerMachineCount,
+		"--kubernetes-version=" + cf.KubernetesVersion,
+		fmt.Sprintf("--control-plane-machine-count=%v", cf.ControlPlaneCount),
+		fmt.Sprintf("--worker-machine-count=%v", cf.WorkerCount),
 	}
 	c := cmds.NewCommandLine(envs, string(clusterctl), args, nil)
 	stdout, stderr, err := c.Program().Execute()
@@ -88,7 +97,7 @@ func (m *MgmtCluster) InstallControlPlane() error {
 		return fmt.Errorf("err: %v, stderr: %v, cmd: %v %v", err, string(stderr), c.CommandName, c.Args)
 	}
 
-	err = writeToDisk(m.ClusterName, m.ClusterName+"-base"+".yaml", []byte(stdout), 0644)
+	err = writeToDisk(cf.ClusterName, cf.ClusterName+"-base"+".yaml", []byte(stdout), 0644)
 	if err != nil {
 		return err
 	}
