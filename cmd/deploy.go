@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/config/events"
 	"github.com/netapp/cake/pkg/engines/rke"
 	"github.com/spf13/viper"
@@ -82,40 +81,35 @@ func serveProgress(logfile string, kubeconfig string) {
 func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 	// TODO dont log.Fatal, need the http endpoints to stay alive
 
-	baseConfig := config.Spec{}
-	//var engineName interface{}
-	var engineName engines.Cluster
+	var engine engines.Cluster
+	var logFile string
 
 	if deploymentType == "capv" {
-		engineName = capv.MgmtCluster{}
+		engine = capv.MgmtCluster{}
 	} else if deploymentType == "rke" {
-		result := rke.MgmtCluster{}
+		result := rke.MgmtCluster{
+			EventStream: make(chan events.Event),
+		}
+		// TODO: Can this be UnmarshalExact?
 		errJ := viper.Unmarshal(&result)
 		if errJ != nil {
 			log.Fatalf("unable to decode into struct, %v", errJ.Error())
 		}
-		log.Info(result.BootstrapIP)
-		result.EventStream = make(chan events.Event)
-		engineName = result
+		logFile = result.LogFile
+		engine = result
 	} else {
 		log.Fatal("Currently only implemented deployment-type is `capv`")
 	}
 
 	clusterName := "capv-mgmt-cluster"
-	baseConfig.Engine = engines.MgmtCluster{}
-
-	//engineName, errJ := engineName.SpecConvert(engineName)
-	//errJ := viper.UnmarshalExact(&engineName)
-	//if errJ != nil {
-	//	log.Fatalf("unable to decode into struct, %v", errJ.Error())
-	//}
 
 	home, errH := homedir.Dir()
 	if errH != nil {
 		log.Fatalf(errH.Error())
 	}
+	log.Info(logFile)
 	kubeconfigLocation := filepath.Join(home, capv.ConfigDir, clusterName, "kubeconfig")
-	go serveProgress(baseConfig.LogFile, kubeconfigLocation)
+	go serveProgress(logFile, kubeconfigLocation)
 
 	start := time.Now()
 	log.Info("Welcome to Mission Control")
@@ -128,9 +122,7 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		"ControlPlaneMachineCount": controlPlaneMachineCount,
 		"workerMachineCount":       workerMachineCount,
 	}).Info("Let's launch a cluster")
-	baseConfig.Engine.EventStream = make(chan events.Event)
-	//progress := baseConfig.Engine.(engines.Cluster).Events()
-	progress := engineName.Events()
+	progress := engine.Events()
 	go func() {
 		for {
 			select {
@@ -149,37 +141,33 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		}
 	}()
 
-	//err := baseConfig.Run()
-	//if err != nil {
-	//	log.Fatal(err.Error())
-	//}
 	err := func() error {
-		exist := engineName.RequiredCommands()
+		exist := engine.RequiredCommands()
 		if len(exist) > 0 {
 			return fmt.Errorf("the following commands were not found in $PATH: [%v]", strings.Join(exist, ", "))
 		}
 
-		err := engineName.CreateBootstrap()
+		err := engine.CreateBootstrap()
 		if err != nil {
 			return err
 		}
 
-		err = engineName.InstallControlPlane()
+		err = engine.InstallControlPlane()
 		if err != nil {
 			return err
 		}
 
-		err = engineName.CreatePermanent()
+		err = engine.CreatePermanent()
 		if err != nil {
 			return err
 		}
 
-		err = engineName.PivotControlPlane()
+		err = engine.PivotControlPlane()
 		if err != nil {
 			return err
 		}
 
-		err = engineName.InstallAddons()
+		err = engine.InstallAddons()
 		if err != nil {
 			return err
 		}

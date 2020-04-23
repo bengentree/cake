@@ -58,9 +58,8 @@ func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 
 // MgmtCluster spec for RKE
 type MgmtCluster struct {
-	EventStream chan events.Event
-	engines.MgmtCluster
-	//config.Spec            `yaml:",inline" mapstructure:",squash"`
+	EventStream             chan events.Event
+	engines.MgmtCluster     `yaml:",inline" mapstructure:",squash"`
 	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
 	token                   string
 	clusterURL              string
@@ -100,10 +99,6 @@ func (c MgmtCluster) RequiredCommands() []string {
 
 // CreateBootstrap deploys a rancher container as single node RKE cluster
 func (c MgmtCluster) CreateBootstrap() error {
-	var err error
-
-	log.Info(c.BootstrapIP)
-
 	c.EventStream <- events.Event{EventType: "progress", Event: "docker pull rancher"}
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -589,7 +584,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 }
 
 // Events returns the channel of progress messages
-func (c MgmtCluster) Events() (chan events.Event) {
+func (c MgmtCluster) Events() chan events.Event {
 	return c.EventStream
 }
 
