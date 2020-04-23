@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/engines"
-
 	v1 "k8s.io/api/core/v1"
 )
 
 // CreatePermanent creates the permanent CAPv management cluster
-func (m MgmtCluster) CreatePermanent(spec *engines.Spec) error {
+func (m MgmtCluster) CreatePermanent() error {
 	var err error
 	var capiConfig string
 	cf := new(ConfigFile)
-	cf.Spec = *spec
-	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	//cf.Spec = *spec
+	//cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	cf.MgmtCluster =m
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -26,7 +25,7 @@ func (m MgmtCluster) CreatePermanent(spec *engines.Spec) error {
 	}
 	kubeConfig := filepath.Join(home, ConfigDir, cf.ClusterName, bootstrapKubeconfig)
 	if cf.Addons.Solidfire.Enable {
-		err = injectTridentPrereqs(cf.ClusterName, cf.StorageNetwork, kubeConfig, nil)
+		//err = injectTridentPrereqs(cf.ClusterName, cf.StorageNetwork, kubeConfig, nil)
 		if err != nil {
 			return err
 		}

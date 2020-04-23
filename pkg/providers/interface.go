@@ -1,9 +1,5 @@
 package providers
 
-import (
-	"github.com/netapp/cake/pkg/config"
-)
-
 // Bootstrap is the interface for creating a bootstrap vm and running cluster provisioning
 type Bootstrap interface {
 	// Prepare setups up any needed infrastructure
@@ -20,7 +16,7 @@ type Bootstrap interface {
 
 // Spec for the Provider
 type Spec struct {
-	config.Spec `yaml:",inline" json:",inline" mapstructure:",squash"`
+	//config.Spec `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 // Run provider bootstrap process

@@ -1,8 +1,7 @@
 package capv
 
 import (
-	"github.com/mitchellh/mapstructure"
-	"github.com/netapp/cake/pkg/config"
+	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
 )
 
@@ -22,22 +21,24 @@ func NewMgmtCluster(clusterConfig MgmtCluster) engines.Cluster {
 */
 
 type ConfigFile struct {
-	engines.Spec `yaml:",inline" json:",inline" mapstructure:",squash"`
+	//engines.Spec `yaml:",inline" json:",inline" mapstructure:",squash"`
 	MgmtCluster  `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 // MgmtCluster spec for CAPV
 type MgmtCluster struct {
-	config.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
+	engines.MgmtCluster
+	vsphere.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 // SpecConvert makes the unmarshalled provider map a struct
-func (m MgmtCluster) SpecConvert(spec *engines.Spec) error {
-	var result MgmtCluster
-	err := mapstructure.Decode(spec.Provider, &result)
-	if err != nil {
-		return err
-	}
-	spec.Provider = result
-	return err
+func (m MgmtCluster) SpecConvert() error {
+	//var result MgmtCluster
+	//err := mapstructure.Decode(spec.Provider, &result)
+	//if err != nil {
+	//	return err
+	//}
+	//spec.Provider = result
+	//return errS
+	return nil
 }

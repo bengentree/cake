@@ -1,8 +1,8 @@
 package vsphere
 
 import (
+	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/providers"
-	"github.com/netapp/cake/pkg/config"
 )
 
 type ConfigFile struct {
@@ -11,5 +11,5 @@ type ConfigFile struct {
 }
 
 type ProviderVsphere struct {
-	config.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
+	vsphere.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
 }

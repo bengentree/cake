@@ -2,7 +2,6 @@ package capv
 
 import (
 	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/engines"
 )
 
 type requiredCmd string
@@ -20,10 +19,11 @@ const (
 var RequiredCommands = cmds.ProvisionerCommands{Name: "required CAPV bootstrap commands"}
 
 // RequiredCommands checks the PATH for required commands
-func (m MgmtCluster) RequiredCommands(spec *engines.Spec) []string {
+func (m MgmtCluster) RequiredCommands() []string {
 	cf := new(ConfigFile)
-	cf.Spec = *spec
-	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	//cf.Spec = *spec
+	//cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	cf.MgmtCluster = m
 
 	kd := cmds.NewCommandLine(nil, string(kind), nil, nil)
 	RequiredCommands.AddCommand(kd.CommandName, kd)

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/netapp/cake/pkg/config/events"
+	"github.com/netapp/cake/pkg/config/vsphere"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -16,9 +18,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/mitchellh/mapstructure"
 	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/engines"
 	"github.com/prometheus/common/log"
 	"github.com/rancher/norman/clientbase"
@@ -58,42 +58,53 @@ func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 
 // MgmtCluster spec for RKE
 type MgmtCluster struct {
-	config.Spec            `yaml:",inline" mapstructure:",squash"`
-	config.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
-	token                  string
-	clusterURL             string
-	rancherClient          *v3.Client
-	BootstrapIP            string `yaml:"BootstrapIP"`
+	EventStream chan events.Event
+	engines.MgmtCluster
+	//config.Spec            `yaml:",inline" mapstructure:",squash"`
+	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
+	token                   string
+	clusterURL              string
+	rancherClient           *v3.Client
+	BootstrapIP             string `yaml:"BootstrapIP"`
 }
 
 // SpecConvert makes the unmarshalled provider map a struct
-func (c MgmtCluster) SpecConvert(spec *engines.Spec) error {
-	var result MgmtCluster
-	err := mapstructure.Decode(spec.Provider, &result)
-	if err != nil {
-		return err
-	}
-	spec.Provider = result
-	return err
+func (c MgmtCluster) SpecConvert() error {
+	//var result MgmtCluster
+	//errJ := viper.UnmarshalExact(&result)
+	//if errJ != nil {
+	//	log.Fatalf("unable to decode into struct, %v", errJ.Error())
+	//}
+	//raw = &result
+	//var result MgmtCluster
+	//err := mapstructure.Decode(spec.Provider, &result)
+	//if err != nil {
+	//	return err
+	//}
+	//spec.Provider = result
+	//return err
+	return nil
 }
 
 // InstallAddons to HA RKE cluster
-func (c MgmtCluster) InstallAddons(spec *engines.Spec) error {
+func (c MgmtCluster) InstallAddons() error {
 	log.Infof("TODO: install addons")
 	return nil
 }
 
 // RequiredCommands provides validation for required commands
-func (c MgmtCluster) RequiredCommands(spec *engines.Spec) []string {
+func (c MgmtCluster) RequiredCommands() []string {
 	log.Infof("TODO: provide required commands")
 	return nil
 }
 
 // CreateBootstrap deploys a rancher container as single node RKE cluster
-func (c MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
+func (c MgmtCluster) CreateBootstrap() error {
 	var err error
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "docker pull rancher"}
+	log.Info(c.BootstrapIP)
+
+	c.EventStream <- events.Event{EventType: "progress", Event: "docker pull rancher"}
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return err
@@ -154,7 +165,7 @@ func (c MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
 		return err
 	}
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "docker run rancher"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "docker run rancher"}
 	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
@@ -163,7 +174,7 @@ func (c MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
 }
 
 // InstallControlPlane configures a single node RKE cluster
-func (c MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
+func (c MgmtCluster) InstallControlPlane() error {
 	// TODO: Remove TLS hack
 	// Get "https://localhost/": x509: certificate signed by unknown authority
 	dt := http.DefaultTransport
@@ -175,13 +186,13 @@ func (c MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
 		dt.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
 	}
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "wait for rancher API"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "wait for rancher API"}
 	err := waitForRancherAPI()
 	if err != nil {
 		return err
 	}
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "configure standalone rancher"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "configure standalone rancher"}
 
 	// Roughly the sequence followed for single node rancher server config:
 	// https://forums.rancher.com/t/automating-rancher-2-x-installation-and-configuration/11454/2
@@ -371,8 +382,8 @@ func newVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 }
 
 // CreatePermanent deploys HA RKE cluster to vSphere
-func (c MgmtCluster) CreatePermanent(spec *engines.Spec) error {
-	spec.EventStream <- config.Event{EventType: "progress", Event: "configure RKE management cluster"}
+func (c MgmtCluster) CreatePermanent() error {
+	c.EventStream <- events.Event{EventType: "progress", Event: "configure RKE management cluster"}
 	// POST https://localhost/v3/cloudcredential
 	body := NewVsphereCloudCredential(c.URL, c.Username, c.Password)
 	resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/cloudcredential", body)
@@ -476,16 +487,16 @@ func (c MgmtCluster) CreatePermanent(spec *engines.Spec) error {
 		return err
 	}
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
 	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 }
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
-func (c MgmtCluster) PivotControlPlane(spec *engines.Spec) error {
-	spec.EventStream <- config.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+func (c MgmtCluster) PivotControlPlane() error {
+	c.EventStream <- events.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "install production rancher server"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "install production rancher server"}
 
 	catalogReq := &v3.Catalog{
 		Branch:   "master",
@@ -501,7 +512,7 @@ func (c MgmtCluster) PivotControlPlane(spec *engines.Spec) error {
 	}
 	log.Info("Added rancher helm chart")
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
 	time.Sleep(time.Minute * 2)
 
 	// I don't know if setting the default project ID is necessary. The UI did it so I added it here as well
@@ -573,13 +584,13 @@ func (c MgmtCluster) PivotControlPlane(spec *engines.Spec) error {
 	rancherAppURL := appResp.Links["self"]
 	log.Infof("Rancher app URL: ", rancherAppURL)
 
-	spec.EventStream <- config.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
+	c.EventStream <- events.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
 	return c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
 }
 
 // Events returns the channel of progress messages
-func (c MgmtCluster) Events(spec *engines.Spec) chan config.Event {
-	return spec.EventStream
+func (c MgmtCluster) Events() (chan events.Event) {
+	return c.EventStream
 }
 
 func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMins int) error {

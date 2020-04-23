@@ -2,21 +2,21 @@ package capv
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/config/events"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/config"
-	"github.com/netapp/cake/pkg/engines"
 )
 
 // CreateBootstrap creates the temporary CAPv bootstrap cluster
-func (m MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
+func (m MgmtCluster) CreateBootstrap() error {
 	var err error
 	cf := new(ConfigFile)
-	cf.Spec = *spec
-	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	//cf.Spec = *spec
+	//cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	cf.MgmtCluster =m
 
-	cf.EventStream <- config.Event{EventType: "progress", Event: "kind create cluster (bootstrap cluster)"}
+	cf.EventStream <- events.Event{EventType: "progress", Event: "kind create cluster (bootstrap cluster)"}
 
 	args := []string{
 		"create",
@@ -27,7 +27,7 @@ func (m MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
 		return err
 	}
 
-	cf.EventStream <- config.Event{EventType: "progress", Event: "getting and writing bootstrap cluster kubeconfig to disk"}
+	cf.EventStream <- events.Event{EventType: "progress", Event: "getting and writing bootstrap cluster kubeconfig to disk"}
 	args = []string{
 		"get",
 		"kubeconfig",
@@ -44,7 +44,7 @@ func (m MgmtCluster) CreateBootstrap(spec *engines.Spec) error {
 	}
 
 	// TODO wait for cluster components to be running
-	cf.EventStream <- config.Event{EventType: "progress", Event: "sleeping 20 seconds, need to fix this"}
+	cf.EventStream <- events.Event{EventType: "progress", Event: "sleeping 20 seconds, need to fix this"}
 	time.Sleep(20 * time.Second)
 
 	return err

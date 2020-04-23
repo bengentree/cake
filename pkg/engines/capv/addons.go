@@ -1,45 +1,34 @@
 package capv
 
-import (
-	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-
-	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/config"
-	"github.com/netapp/cake/pkg/engines"
-	"golang.org/x/sync/errgroup"
-)
-
 const (
 	specWithTrident = "%s-final.yaml"
 )
 
 // InstallAddons installs any optional Addons to a management cluster
-func (m MgmtCluster) InstallAddons(spec *engines.Spec) error {
-	var g errgroup.Group
-	cf := new(ConfigFile)
-	cf.Spec = *spec
-	cf.MgmtCluster = spec.Provider.(MgmtCluster)
-
-	g.Go(func() error {
-		if cf.Addons.Solidfire.Enable {
-			return installTrident(cf)
-		}
-		return nil
-	})
-	g.Go(func() error {
-		if cf.Addons.Observability.Enable {
-
-			return installObservability(cf)
-		}
-		return nil
-	})
-
-	return g.Wait()
+func (m MgmtCluster) InstallAddons() error {
+	//var g errgroup.Group
+	//cf := new(ConfigFile)
+	//cf.Spec = *spec
+	//cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	//
+	//g.Go(func() error {
+	//	if cf.Addons.Solidfire.Enable {
+	//		return installTrident(cf)
+	//	}
+	//	return nil
+	//})
+	//g.Go(func() error {
+	//	if cf.Addons.Observability.Enable {
+	//
+	//		return installObservability(cf)
+	//	}
+	//	return nil
+	//})
+	//
+	//return g.Wait()
+	return nil
 }
-
+/*
 func installObservability(m *ConfigFile) error {
 	m.EventStream <- config.Event{EventType: "progress", Event: "installing the observability addon"}
 	var err error
@@ -67,6 +56,9 @@ func installObservability(m *ConfigFile) error {
 		sed -i 's/prometheus.nks-system.svc.cluster.local:8080/prometheus-server.nks-system.svc.cluster.local/g' grafana/grafana-values.yaml
 		make all
 	*/
+
+
+	/*
 	m.EventStream <- config.Event{EventType: "progress", Event: "observability addon install complete"}
 	return err
 }
@@ -182,3 +174,5 @@ func injectTridentPrereqs(clusterName, storageNetwork, kubeconfigLocation string
 
 	return err
 }
+
+*/

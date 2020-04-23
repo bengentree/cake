@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/engines"
 )
 
 // PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster
-func (m MgmtCluster) PivotControlPlane(spec *engines.Spec) error {
+func (m MgmtCluster) PivotControlPlane() error {
 	var err error
 	cf := new(ConfigFile)
-	cf.Spec = *spec
-	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	//cf.Spec = *spec
+	//cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	cf.MgmtCluster = m
 
 	home, err := os.UserHomeDir()
 	if err != nil {

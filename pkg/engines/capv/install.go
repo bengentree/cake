@@ -2,22 +2,22 @@ package capv
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/config/events"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
-	"github.com/netapp/cake/pkg/config"
-	"github.com/netapp/cake/pkg/engines"
 )
 
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
-func (m MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
+func (m MgmtCluster) InstallControlPlane() error {
 	var err error
 	cf := new(ConfigFile)
-	cf.Spec = *spec
-	cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	//cf.Spec = *spec
+	//cf.MgmtCluster = spec.Provider.(MgmtCluster)
+	cf.MgmtCluster = m
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -50,7 +50,7 @@ func (m MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
 		return err
 	}
 
-	cf.EventStream <- config.Event{EventType: "progress", Event: "init capi in the bootstrap cluster"}
+	cf.EventStream <- events.Event{EventType: "progress", Event: "init capi in the bootstrap cluster"}
 	nodeTemplate := strings.Split(filepath.Base(cf.OVA.NodeTemplate), ".ova")[0]
 	LoadBalancerTemplate := strings.Split(filepath.Base(cf.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
@@ -81,7 +81,7 @@ func (m MgmtCluster) InstallControlPlane(spec *engines.Spec) error {
 	// TODO wait for CAPv deployment in k8s to be ready
 	time.Sleep(30 * time.Second)
 
-	cf.EventStream <- config.Event{EventType: "progress", Event: "writing CAPv spec file out"}
+	cf.EventStream <- events.Event{EventType: "progress", Event: "writing CAPv spec file out"}
 	args = []string{
 		"config",
 		"cluster",
