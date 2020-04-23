@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/netapp/cake/pkg/config/events"
 	"github.com/netapp/cake/pkg/engines/rke"
 	"github.com/spf13/viper"
 	"io/ioutil"
@@ -87,9 +86,7 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 	if deploymentType == "capv" {
 		engine = capv.MgmtCluster{}
 	} else if deploymentType == "rke" {
-		result := rke.MgmtCluster{
-			EventStream: make(chan events.Event),
-		}
+		result := rke.NewMgmtClusterFullConfig()
 		// TODO: Can this be UnmarshalExact?
 		errJ := viper.Unmarshal(&result)
 		if errJ != nil {
@@ -107,7 +104,6 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 	if errH != nil {
 		log.Fatalf(errH.Error())
 	}
-	log.Info(logFile)
 	kubeconfigLocation := filepath.Join(home, capv.ConfigDir, clusterName, "kubeconfig")
 	go serveProgress(logFile, kubeconfigLocation)
 

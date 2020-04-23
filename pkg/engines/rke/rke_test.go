@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/netapp/cake/pkg/config/events"
 	"github.com/netapp/cake/pkg/engines"
-	"github.com/netapp/cake/pkg/engines/capv"
 	v3 "github.com/rancher/types/client/management/v3"
 	"reflect"
 	"testing"
@@ -32,8 +32,7 @@ func TestMgmtCluster_CreateBootstrap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := MgmtCluster{
 				MgmtCluster:   engines.MgmtCluster{},
-				Vsphere:       capv.Vsphere{},
-				events:        make(chan interface{}),
+				EventStream:   make(chan events.Event),
 				token:         "",
 				clusterURL:    "",
 				rancherClient: nil,
@@ -52,7 +51,6 @@ func TestMgmtCluster_CreateBootstrap(t *testing.T) {
 func TestMgmtCluster_CreatePermanent(t *testing.T) {
 	type fields struct {
 		MgmtCluster   engines.MgmtCluster
-		Vsphere       capv.Vsphere
 		events        chan interface{}
 		token         string
 		clusterURL    string
@@ -70,8 +68,6 @@ func TestMgmtCluster_CreatePermanent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &MgmtCluster{
 				MgmtCluster:   tt.fields.MgmtCluster,
-				Vsphere:       tt.fields.Vsphere,
-				events:        tt.fields.events,
 				token:         tt.fields.token,
 				clusterURL:    tt.fields.clusterURL,
 				rancherClient: tt.fields.rancherClient,
@@ -87,7 +83,6 @@ func TestMgmtCluster_CreatePermanent(t *testing.T) {
 func TestMgmtCluster_Events(t *testing.T) {
 	type fields struct {
 		MgmtCluster   engines.MgmtCluster
-		Vsphere       capv.Vsphere
 		events        chan interface{}
 		token         string
 		clusterURL    string
@@ -105,8 +100,6 @@ func TestMgmtCluster_Events(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &MgmtCluster{
 				MgmtCluster:   tt.fields.MgmtCluster,
-				Vsphere:       tt.fields.Vsphere,
-				events:        tt.fields.events,
 				token:         tt.fields.token,
 				clusterURL:    tt.fields.clusterURL,
 				rancherClient: tt.fields.rancherClient,
@@ -122,7 +115,6 @@ func TestMgmtCluster_Events(t *testing.T) {
 func TestMgmtCluster_InstallAddons(t *testing.T) {
 	type fields struct {
 		MgmtCluster   engines.MgmtCluster
-		Vsphere       capv.Vsphere
 		events        chan interface{}
 		token         string
 		clusterURL    string
@@ -140,8 +132,6 @@ func TestMgmtCluster_InstallAddons(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := MgmtCluster{
 				MgmtCluster:   tt.fields.MgmtCluster,
-				Vsphere:       tt.fields.Vsphere,
-				events:        tt.fields.events,
 				token:         tt.fields.token,
 				clusterURL:    tt.fields.clusterURL,
 				rancherClient: tt.fields.rancherClient,
@@ -157,7 +147,6 @@ func TestMgmtCluster_InstallAddons(t *testing.T) {
 func TestMgmtCluster_InstallControlPlane(t *testing.T) {
 	type fields struct {
 		MgmtCluster   engines.MgmtCluster
-		Vsphere       capv.Vsphere
 		events        chan interface{}
 		token         string
 		clusterURL    string
@@ -175,8 +164,6 @@ func TestMgmtCluster_InstallControlPlane(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &MgmtCluster{
 				MgmtCluster:   tt.fields.MgmtCluster,
-				Vsphere:       tt.fields.Vsphere,
-				events:        tt.fields.events,
 				token:         tt.fields.token,
 				clusterURL:    tt.fields.clusterURL,
 				rancherClient: tt.fields.rancherClient,
@@ -192,7 +179,6 @@ func TestMgmtCluster_InstallControlPlane(t *testing.T) {
 func TestMgmtCluster_PivotControlPlane(t *testing.T) {
 	type fields struct {
 		MgmtCluster   engines.MgmtCluster
-		Vsphere       capv.Vsphere
 		events        chan interface{}
 		token         string
 		clusterURL    string
@@ -210,8 +196,6 @@ func TestMgmtCluster_PivotControlPlane(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := MgmtCluster{
 				MgmtCluster:   tt.fields.MgmtCluster,
-				Vsphere:       tt.fields.Vsphere,
-				events:        tt.fields.events,
 				token:         tt.fields.token,
 				clusterURL:    tt.fields.clusterURL,
 				rancherClient: tt.fields.rancherClient,
@@ -227,7 +211,6 @@ func TestMgmtCluster_PivotControlPlane(t *testing.T) {
 func TestMgmtCluster_RequiredCommands(t *testing.T) {
 	type fields struct {
 		MgmtCluster   engines.MgmtCluster
-		Vsphere       capv.Vsphere
 		events        chan interface{}
 		token         string
 		clusterURL    string
@@ -245,8 +228,6 @@ func TestMgmtCluster_RequiredCommands(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := MgmtCluster{
 				MgmtCluster:   tt.fields.MgmtCluster,
-				Vsphere:       tt.fields.Vsphere,
-				events:        tt.fields.events,
 				token:         tt.fields.token,
 				clusterURL:    tt.fields.clusterURL,
 				rancherClient: tt.fields.rancherClient,
@@ -272,7 +253,7 @@ func TestNewMgmtClusterFullConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewMgmtClusterFullConfig(tt.args.clusterConfig); !reflect.DeepEqual(got, tt.want) {
+			if got := NewMgmtClusterFullConfig(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewMgmtClusterFullConfig() = %v, want %v", got, tt.want)
 			}
 		})
@@ -315,8 +296,7 @@ func (m mockOSCmds) GenericExecute(envs map[string]string, name string, args []s
 
 func mockEventsReceiver(c MgmtCluster) {
 	for {
-		r := <-c.Events()
-		e := r.(capv.Event)
+		e := <-c.Events()
 		fmt.Printf("eventType: %s event: %s\n", e.EventType, e.Event)
 	}
 }
