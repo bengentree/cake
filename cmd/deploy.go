@@ -189,6 +189,7 @@ func runEngine() {
 		time.Sleep(24 * time.Hour)
 	}
 	defer file.Close()
+	// this seems to prepend to the log file and overwrite existing data
 	mw := io.MultiWriter(os.Stdout, file)
 	log.SetOutput(mw)
 

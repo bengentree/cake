@@ -40,17 +40,16 @@ func (v *MgmtBootstrap) Prepare() error {
 			return err
 		}
 		v.Resources["FolderFromConfig"] = FolderFromConfig[v.Folder]
+		v.Folder = v.Resources["FolderFromConfig"].(*object.Folder).InventoryPath
 	}
+	v.Folder = v.Resources["mgmtFolder"].(*object.Folder).InventoryPath
 
 	v.Session.Folder = bootstrapFolder["bootstrap"]
-	//v.Folder = "templates"
-
 	ovas, err := v.Session.DeployOVATemplates(v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
 
 	v.Resources[v.OVA.NodeTemplate] = ovas[v.OVA.NodeTemplate]
 	v.Resources[v.OVA.LoadbalancerTemplate] = ovas[v.OVA.LoadbalancerTemplate]
 
-	v.Folder = v.Resources["FolderFromConfig"].(*object.Folder).InventoryPath
 	publicKey := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDW7BP54hSp3TrQjQq7O+oprZdXH8zbKBww/YJyCD9ksM/Y3BiFaCDwzN/vcRSslkn0kJDUq7TxmKp9bEZLTXqAiRe7GflNGoiAUuNY9EWnxt305HIkBs+OEdV6KDtnlm9sRAADflzbDi6YiMjbwNcfoRoxTgpo6BNlzv9Y3prDXiwEjxvosK+4WWIVTTEh33nNvQ5iQhPqBNgURmjQx9EDXFIRdZzA8OykPNLIqFdzmxGZWWxFbW/n6nEl/96b6w7Gx0YgzTSLs+6WAQl8SMP9l22L6puitpjihRw9cWRJ9r6x1eLqgc5Sv7gDKOMXghbmS6hy+AtrxCPPJgq7Mguc5bPAqTZlYMy98dxpHVqtAnBso/9aLOzAXX6At/0QUIwMP693B11NTGniIMtBxnD/yWvGoxTXNmXcTvj13cTzSv9czaGSJ+MTRIugtgyouZADfs8v59NV9KoaEq8umy6WEhmtw5wkjzvC5KK4N2bsM1N+8lSIKxYWxWZFsdYBP8ep442Z/2T5R8y8c5cp7tQqqapDt8JPJ0OPq3sn30BO3X8MgvmoB39j4Cqok1y9VuouPH4RalRLMR7KrASdlFengjt0vWBUoNaEuxRdJR2eOM6SpZh6YGqLdQH1MLaBOzDTH2tTLyTXCOSJpve6ZHOPbjS2BF34a1Kj52NTFtiYTw== jacob.weinstock@netapp.com"
 	v.LogFile = "/tmp/cake.log"
 	configYaml, err := yaml.Marshal(v)
