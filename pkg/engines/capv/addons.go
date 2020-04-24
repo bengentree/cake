@@ -3,9 +3,9 @@ package capv
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/cmds"
 	"github.com/netapp/cake/pkg/config/events"
 )
@@ -74,7 +74,7 @@ func installObservability(m *MgmtCluster) error {
 func installTrident(m *MgmtCluster) error {
 	m.EventStream <- events.Event{EventType: "progress", Event: "installing the trident addon"}
 	var err error
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func injectTridentPrereqs(clusterName, storageNetwork, kubeconfigLocation string
 		envs = map[string]string{"KUBECONFIG": kubeconfigLocation}
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}
