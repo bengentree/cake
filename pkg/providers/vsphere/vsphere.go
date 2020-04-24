@@ -24,13 +24,13 @@ type Session struct {
 type MgmtBootstrap struct {
 	providers.Spec                `yaml:",inline" json:",inline" mapstructure:",squash"`
 	vsphereConfig.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
-	cluster.CAPIConfig            `yaml:",inline" json:",inline" mapstructure:",squash"`
 	Session                       *Session               `yaml:"-" json:"-" mapstructure:"-"`
 	Resources                     map[string]interface{} `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 type MgmtBootstrapCAPV struct {
-	MgmtBootstrap `yaml:",inline" json:",inline" mapstructure:",squash"`
+	MgmtBootstrap      `yaml:",inline" json:",inline" mapstructure:",squash"`
+	cluster.CAPIConfig `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 type MgmtBootstrapRKE struct {
