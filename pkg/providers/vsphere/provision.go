@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -20,20 +21,21 @@ type tcp struct {
 
 // Provision calls the process to create the management cluster
 func (v *MgmtBootstrap) Provision() error {
-	bootstrapVMIP, err := GetVMIP(v.Resources["bootstrapVM"].(*object.VirtualMachine))
+	bootstrapVMIP, err := GetVMIP(v.Resources[bootstrapVMName].(*object.VirtualMachine))
 	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
+	var filename string
 
-	/*
-		filename, err := os.Executable()
+	if runtime.GOOS == "linux" {
+		filename, err = os.Executable()
 		if err != nil {
 			return err
 		}
-	*/
-
-	// TODO get cake linux binary embedded in and use that to transfer
+	} else {
+		//TODO get cake linux binary embedded in and use that for the transfer for runtime.GOOS != "linux"
+		filename = "bin/cake-linux"
+	}
 	// TODO wait until the uploadPort is listening instead of the 30 sec sleep
 	time.Sleep(30 * time.Second)
-	filename := "bin/cake-linux"
 	tcpUpload, err := newTCPConn(bootstrapVMIP + ":" + uploadPort)
 	if err != nil {
 		return err
@@ -42,15 +44,13 @@ func (v *MgmtBootstrap) Provision() error {
 	if err != nil {
 		return err
 	}
-
 	// TODO wait until host prereqs are installed and ready
 	time.Sleep(30 * time.Second)
-
 	tcp, err := newTCPConn(bootstrapVMIP + ":" + commandPort)
 	if err != nil {
 		return err
 	}
-	cakeCmd := fmt.Sprintf("%s deploy --local --deployment-type %s > /tmp/cake.out", remoteExecutable, string(v.EngineType))
+	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType))
 	tcp.runAsyncCommand(cakeCmd)
 
 	return err

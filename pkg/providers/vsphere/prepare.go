@@ -9,57 +9,57 @@ import (
 
 // Prepare the environment for bootstrapping
 func (v *MgmtBootstrap) Prepare() error {
-	templateFolder, err := v.Session.CreateVMFolder("cake/templates")
+	tFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + templatesFolder)
 	if err != nil {
 		return err
 	}
-	v.Resources["cakeFolder"] = templateFolder["cake"]
-	v.Resources["templatesFolder"] = templateFolder["templates"]
+	v.Resources[baseFolder] = tFolder[baseFolder]
+	v.Resources[templatesFolder] = tFolder[templatesFolder]
 
-	workloadFolder, err := v.Session.CreateVMFolder("cake/workloads")
+	wFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + workloadsFolder)
 	if err != nil {
 		return err
 	}
-	v.Resources["workloadsFolder"] = workloadFolder["workloads"]
+	v.Resources[workloadsFolder] = wFolder[workloadsFolder]
 
-	mgmtFolder, err := v.Session.CreateVMFolder("cake/mgmt")
+	mFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + mgmtFolder)
 	if err != nil {
 		return err
 	}
-	v.Resources["mgmtFolder"] = mgmtFolder["mgmt"]
+	v.Resources[mgmtFolder] = mFolder[mgmtFolder]
 
-	bootstrapFolder, err := v.Session.CreateVMFolder("cake/bootstrap")
+	bootFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + bootstrapFolder)
 	if err != nil {
 		return err
 	}
-	v.Resources["bootstrapFolder"] = bootstrapFolder["bootstrap"]
+	v.Resources[bootstrapFolder] = bootFolder[bootstrapFolder]
 
 	if v.Folder != "" {
-		FolderFromConfig, err := v.Session.CreateVMFolder(v.Folder)
+		FolderFromConfig, err := v.Session.CreateVMFolder(baseFolder + "/" + v.Folder)
 		if err != nil {
 			return err
 		}
 		v.Resources["FolderFromConfig"] = FolderFromConfig[v.Folder]
 		v.Folder = v.Resources["FolderFromConfig"].(*object.Folder).InventoryPath
+	} else {
+		v.Folder = v.Resources[mgmtFolder].(*object.Folder).InventoryPath
 	}
-	v.Folder = v.Resources["mgmtFolder"].(*object.Folder).InventoryPath
 
-	v.Session.Folder = bootstrapFolder["bootstrap"]
+	v.Session.Folder = bootFolder[bootstrapFolder]
 	ovas, err := v.Session.DeployOVATemplates(v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
 
 	v.Resources[v.OVA.NodeTemplate] = ovas[v.OVA.NodeTemplate]
 	v.Resources[v.OVA.LoadbalancerTemplate] = ovas[v.OVA.LoadbalancerTemplate]
 
-	publicKey := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDW7BP54hSp3TrQjQq7O+oprZdXH8zbKBww/YJyCD9ksM/Y3BiFaCDwzN/vcRSslkn0kJDUq7TxmKp9bEZLTXqAiRe7GflNGoiAUuNY9EWnxt305HIkBs+OEdV6KDtnlm9sRAADflzbDi6YiMjbwNcfoRoxTgpo6BNlzv9Y3prDXiwEjxvosK+4WWIVTTEh33nNvQ5iQhPqBNgURmjQx9EDXFIRdZzA8OykPNLIqFdzmxGZWWxFbW/n6nEl/96b6w7Gx0YgzTSLs+6WAQl8SMP9l22L6puitpjihRw9cWRJ9r6x1eLqgc5Sv7gDKOMXghbmS6hy+AtrxCPPJgq7Mguc5bPAqTZlYMy98dxpHVqtAnBso/9aLOzAXX6At/0QUIwMP693B11NTGniIMtBxnD/yWvGoxTXNmXcTvj13cTzSv9czaGSJ+MTRIugtgyouZADfs8v59NV9KoaEq8umy6WEhmtw5wkjzvC5KK4N2bsM1N+8lSIKxYWxWZFsdYBP8ep442Z/2T5R8y8c5cp7tQqqapDt8JPJ0OPq3sn30BO3X8MgvmoB39j4Cqok1y9VuouPH4RalRLMR7KrASdlFengjt0vWBUoNaEuxRdJR2eOM6SpZh6YGqLdQH1MLaBOzDTH2tTLyTXCOSJpve6ZHOPbjS2BF34a1Kj52NTFtiYTw== jacob.weinstock@netapp.com"
-	v.LogFile = "/tmp/cake.log"
 	configYaml, err := yaml.Marshal(v)
 	if err != nil {
 		return err
 	}
+	// TODO put in cloudinit engine specific bootstrap VM prereqs.
 	script := fmt.Sprintf(`#!/bin/bash
 
-socat -u TCP-LISTEN:%s,fork CREATE:%s,group=root,perm=0755 & disown
-socat TCP-LISTEN:%s,reuseaddr,fork EXEC:"/bin/bash",pty,setsid,setpgid,stderr,ctty & disown
+%s
+%s
 wget -O /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.0/clusterctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64
 chmod +x /usr/local/bin/clusterctl
 wget -O /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.7.0/kind-$(uname)-amd64
@@ -69,12 +69,12 @@ cat <<EOF> %s
 %s
 EOF
 
-`, uploadPort, remoteExecutable, commandPort, remoteConfig, configYaml)
-	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.NodeTemplate], "bootstrap-vm", script, publicKey, "jacob")
+`, fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable), fmt.Sprintf(runRemoteCmd, commandPort), remoteConfig, configYaml)
+	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.NodeTemplate], bootstrapVMName, script, v.SSH.AuthorizedKey, v.SSH.Username)
 	if err != nil {
 		return err
 	}
-	v.Resources["bootstrapVM"] = bootstrapVM
+	v.Resources[bootstrapVMName] = bootstrapVM
 
 	return err
 }

@@ -28,6 +28,7 @@ type Spec struct {
 	EventStream           chan events.Event `yaml:"-" json:"-" mapstructure:"-"`
 	EngineType            types.EngineType  `yaml:"EngineType" json:"enginetype"`
 	LogFile               string            `yaml:"LogFile" json:"logfile"`
+	SSH                   cluster.SSH       `yaml:"SSH" json:"ssh"`
 }
 
 // Run provider bootstrap process

@@ -5,6 +5,7 @@ import (
 )
 
 func TestCmd(t *testing.T) {
+	t.Skip("skipping test, needs a real connection.")
 
 	//tcp, err := newTCPConn("172.60.0.85" + ":" + commandPort)
 	tcp, err := newTCPConn("172.60.0.85" + ":" + "50001")
@@ -18,6 +19,7 @@ func TestCmd(t *testing.T) {
 }
 
 func TestUpload(t *testing.T) {
+	t.Skip("skipping test, needs a real connection.")
 	filename := "../../../bin/cake-linux"
 	tcpUpload, err := newTCPConn("172.60.0.77" + ":" + uploadPort)
 	if err != nil {
