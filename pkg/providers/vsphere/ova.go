@@ -13,6 +13,7 @@ import (
 
 	pkgerrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -24,31 +25,47 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// DeployOVATemplate uploads ova and makes it a template
-func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object.VirtualMachine, error) {
-	ctx := context.TODO()
+// DeployOVATemplates deploys multiple OVAs asynchronously
+func (s *Session) DeployOVATemplates(templatePaths ...string) (map[string]*object.VirtualMachine, error) {
+	numOVAs := len(templatePaths)
+	result := make(map[string]*object.VirtualMachine, numOVAs)
 
-	vSphereClient, err := r.SessionManager.GetClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get vSphere client, %v", err)
+	var g errgroup.Group
+	for _, template := range templatePaths {
+		template := template
+		g.Go(func() error {
+			r, err := s.deployOVATemplate(template)
+			if err != nil {
+				return err
+			}
+			result[template] = r
+			return nil
+		})
 	}
+	if err := g.Wait(); err != nil {
+		return result, err
+	}
+	return result, nil
 
+}
+
+// deployOVATemplate uploads ova and makes it a template
+func (s *Session) deployOVATemplate(templatePath string) (*object.VirtualMachine, error) {
+	templateName := strings.TrimSuffix(path.Base(templatePath), ".ova")
+	ctx := context.TODO()
+	vSphereClient := s.Conn
 	finder := find.NewFinder(vSphereClient.Client, true)
-
-	finder.SetDatacenter(r.Datacenter)
-
+	finder.SetDatacenter(s.Datacenter)
 	foundTemplate, err := finder.VirtualMachine(ctx, templateName)
 	if err == nil {
 		return foundTemplate, nil
 	}
-
 	networks := []types.OvfNetworkMapping{
 		{
 			Name:    "nic0",
-			Network: r.Network.Reference(),
+			Network: s.Network.Reference(),
 		},
 	}
-
 	cisp := types.OvfCreateImportSpecParams{
 		DiskProvisioning:   "thin",
 		EntityName:         templateName,
@@ -63,7 +80,7 @@ func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object
 		NetworkMapping: networks,
 	}
 
-	vm, err := createVirtualMachine(ctx, cisp, templatePath, r)
+	vm, err := createVirtualMachine(ctx, cisp, templatePath, s)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create virtual machine, %v", err)
 	}
@@ -81,11 +98,8 @@ func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object
 	return vm, nil
 }
 
-func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecParams, ovaPath string, vSphere *Resource) (*object.VirtualMachine, error) {
-	vSphereClient, err := vSphere.SessionManager.GetClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get vSphere client, %v", err)
-	}
+func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecParams, ovaPath string, vSphere *Session) (*object.VirtualMachine, error) {
+	vSphereClient := vSphere.Conn
 
 	ovaClient, err := newOVA(vSphereClient, ovaPath)
 	if err != nil {

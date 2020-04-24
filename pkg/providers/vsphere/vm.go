@@ -2,6 +2,7 @@ package vsphere
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 // CloneTemplate creates a VM from a template
-func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, bootScript, publicKey, osUser string) (*object.VirtualMachine, error) {
+func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bootScript, publicKey, osUser string) (*object.VirtualMachine, error) {
 
 	// give whole clone process a 10 minute timeout
 	d := time.Now().Add(10 * time.Minute)
@@ -28,8 +29,8 @@ func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, b
 	spec.Config = &types.VirtualMachineConfigSpec{}
 	spec.Config.ExtraConfig = cloudinitUserDataConfig
 
-	spec.Location.Datastore = types.NewReference(r.Datastore.Reference())
-	spec.Location.Pool = types.NewReference(r.ResourcePool.Reference())
+	spec.Location.Datastore = types.NewReference(s.Datastore.Reference())
+	spec.Location.Pool = types.NewReference(s.ResourcePool.Reference())
 	spec.PowerOn = false // Do not turn machine on until after metadata reconfiguration
 	spec.Location.DiskMoveType = string(types.VirtualMachineRelocateDiskMoveOptionsMoveAllDiskBackingsAndConsolidate)
 
@@ -54,7 +55,7 @@ func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, b
 	}
 
 	nic := types.VirtualVmxnet3{}
-	nic.Backing, err = r.Network.EthernetCardBackingInfo(ctx)
+	nic.Backing, err = s.Network.EthernetCardBackingInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get information on NIC, %v", err)
 	}
@@ -66,7 +67,7 @@ func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, b
 	spec.Config.DeviceChange = deviceSpecs
 
 	log.Debugf("cloning %s with spec: %+v", name, spec)
-	task, err := template.Clone(ctx, r.Folder, name, spec)
+	task, err := template.Clone(ctx, s.Folder, name, spec)
 	if err != nil {
 		return nil, fmt.Errorf("unable to clone template, %v", err)
 	}
@@ -76,7 +77,7 @@ func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, b
 		return nil, fmt.Errorf("clone task failed, %v", err)
 	}
 
-	vm, err := r.SessionManager.GetVM(r.Datacenter, name)
+	vm, err := s.GetVM(name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find virtual machine, %v", err)
 	}
@@ -187,4 +188,32 @@ func DeleteVM(vm *object.VirtualMachine) error {
 	}
 
 	return nil
+}
+
+// GetVMIP returns the first IPv4 IP on the first NIC
+func GetVMIP(vm *object.VirtualMachine) (string, error) {
+	const (
+		timeout = 10 * time.Minute
+		nic     = "ethernet-0"
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	log.Debugf("Waiting for vm to receive ip on interface %s, timeout %s", nic, timeout)
+	macToIPMap, err := vm.WaitForNetIP(ctx, true, nic)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("timed out after %s while waiting for ip", timeout)
+		}
+		return "", fmt.Errorf("failed waiting for IP, %v", err)
+	}
+
+	for _, ips := range macToIPMap {
+		for _, ip := range ips {
+			return ip, nil
+		}
+	}
+
+	return "", errors.New("could not find IP address of VM Network NIC")
 }

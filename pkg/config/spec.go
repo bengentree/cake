@@ -16,7 +16,7 @@ const (
 	VsphereProvider = ProviderType("VSPHERE")
 	KVMProvider     = ProviderType("KVM")
 	EngineRKE       = EngineType("RKE")
-	EngineCAPI      = EngineType("CAPI")
+	EngineCAPI      = EngineType("CAPV")
 )
 
 // Spec holds information needed to provision a K8s management cluster
