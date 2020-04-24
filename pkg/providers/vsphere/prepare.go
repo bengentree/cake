@@ -8,7 +8,8 @@ import (
 )
 
 // Prepare the environment for bootstrapping
-func (v *MgmtBootstrap) Prepare() error {
+func (v *MgmtBootstrapCAPV) Prepare() error {
+
 	tFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + templatesFolder)
 	if err != nil {
 		return err
@@ -58,6 +59,7 @@ func (v *MgmtBootstrap) Prepare() error {
 	// TODO put in cloudinit engine specific bootstrap VM prereqs.
 	script := fmt.Sprintf(`#!/bin/bash
 
+	# install socat
 %s
 %s
 wget -O /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.0/clusterctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64

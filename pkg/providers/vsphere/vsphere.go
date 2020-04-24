@@ -1,6 +1,8 @@
 package vsphere
 
 import (
+	"fmt"
+
 	"github.com/netapp/cake/pkg/config/cluster"
 	vsphereConfig "github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/providers"
@@ -25,6 +27,21 @@ type MgmtBootstrap struct {
 	cluster.CAPIConfig            `yaml:",inline" json:",inline" mapstructure:",squash"`
 	Session                       *Session               `yaml:"-" json:"-" mapstructure:"-"`
 	Resources                     map[string]interface{} `yaml:"-" json:"-" mapstructure:"-"`
+}
+
+type MgmtBootstrapCAPV struct {
+	MgmtBootstrap `yaml:",inline" json:",inline" mapstructure:",squash"`
+}
+
+type MgmtBootstrapRKE struct {
+	MgmtBootstrap `yaml:",inline" json:",inline" mapstructure:",squash"`
+	BootstrapIP   string `yaml:"BootstrapIP" json:"BootstrapIP"`
+}
+
+func (v *MgmtBootstrapRKE) Client() error {
+	fmt.Println(v.BootstrapIP)
+	panic("stop")
+	return nil
 }
 
 // Client setups connection to remote vCenter
