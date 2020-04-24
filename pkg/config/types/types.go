@@ -1,5 +1,11 @@
 package types
 
+// ProviderType for available providers
+type ProviderType string
+
+// EngineType for available engines
+type EngineType string
+
 // ConfigSpec holds information needed to register HCI with NKS
 type ConfigSpec struct {
 	Provider              string        `yaml:"Provider" json:"provider"`

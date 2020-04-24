@@ -54,7 +54,9 @@ func (m MgmtCluster) PivotControlPlane() error {
 		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
 		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKey,
 		"KUBECONFIG":                 permanentKubeConfig,
-		//"GITHUB_TOKEN":               "",
+	}
+	if m.GithubToken != "" {
+		envs["GITHUB_TOKEN"] = m.GithubToken
 	}
 
 	args = []string{

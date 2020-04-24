@@ -3,14 +3,18 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/spf13/viper"
 
 	"github.com/netapp/cake/pkg/config/events"
+	"github.com/netapp/cake/pkg/providers"
+	"github.com/netapp/cake/pkg/providers/vsphere"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/engines"
@@ -38,7 +42,11 @@ var deployCmd = &cobra.Command{
 	Short: "Deploy a K8s CAPv or Rancher Management Cluster",
 	Long:  `CAPv deploy will create an upstream CAPv management cluster, the Rancher/RKE option will deploy an RKE cluster with Rancher Server`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runProvisioner(controlPlaneMachineCount, workerMachineCount)
+		if localDeploy {
+			runEngine()
+		} else {
+			runProvider()
+		}
 	},
 }
 
@@ -54,9 +62,17 @@ func init() {
 	deployCmd.Flags().StringVarP(&deploymentType, "deployment-type", "d", "", "The type of deployment to create (capv, rke)")
 	deployCmd.MarkFlagRequired("deployment-type")
 	rootCmd.AddCommand(deployCmd)
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		logInit()
+		return nil
+	}
 
 	responseBody = new(progress)
 	responseBody.Messages = []string{}
+}
+
+func logInit() {
+	log.SetOutput(os.Stdout)
 }
 
 func getResponseData() progress {
@@ -81,7 +97,55 @@ func serveProgress(logfile string, kubeconfig string) {
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
-func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
+func runProvider() {
+
+	vsProvider := new(vsphere.MgmtBootstrap)
+	errJ := viper.Unmarshal(&vsProvider)
+	if errJ != nil {
+		log.Fatalf("unable to decode into struct, %v", errJ.Error())
+	}
+
+	clusterName := vsProvider.ClusterName
+	controlPlaneCount := vsProvider.ControlPlaneCount
+	workerCount := vsProvider.WorkerCount
+	vsProvider.EventStream = make(chan events.Event)
+
+	start := time.Now()
+	log.Info("Welcome to Mission Control")
+	log.WithFields(log.Fields{
+		"ClusterName":              clusterName,
+		"ControlPlaneMachineCount": controlPlaneCount,
+		"workerMachineCount":       workerCount,
+	}).Info("Let's launch a cluster")
+	progress := vsProvider.Events()
+	go func() {
+		for {
+			select {
+			case event := <-progress:
+				switch event.EventType {
+				case "checkpoint":
+					// update rest api
+				default:
+					e := event
+					log.WithFields(log.Fields{
+						"eventType": e.EventType,
+						"event":     e.Event,
+					}).Info("event received")
+				}
+			}
+		}
+	}()
+
+	err := providers.Run(vsProvider)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	stop := time.Now()
+	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
+
+}
+
+func runEngine() {
 	// TODO dont log.Fatal, need the http endpoints to stay alive
 
 	var clusterName string
@@ -119,6 +183,15 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		log.Fatal("Currently only implemented deployment-type is `capv`")
 	}
 
+	file, err := os.Create(logFile)
+	if err != nil {
+		log.Error(err)
+		time.Sleep(24 * time.Hour)
+	}
+	defer file.Close()
+	mw := io.MultiWriter(os.Stdout, file)
+	log.SetOutput(mw)
+
 	home, errH := homedir.Dir()
 	if errH != nil {
 		log.Fatalf(errH.Error())
@@ -134,6 +207,7 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		"workerMachineCount":       workerCount,
 	}).Info("Let's launch a cluster")
 	progress := engineName.Events()
+
 	go func() {
 		for {
 			select {
@@ -152,9 +226,9 @@ func runProvisioner(controlPlaneMachineCount, workerMachineCount int) {
 		}
 	}()
 
-	err := engines.Run(engineName)
+	err = engines.Run(engineName)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Error(err.Error())
 	}
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))

@@ -1,8 +1,9 @@
 package vsphere
 
 import (
+	"github.com/netapp/cake/pkg/config/cluster"
 	vsphereConfig "github.com/netapp/cake/pkg/config/vsphere"
-	"github.com/netapp/cake/pkg/engines"
+	"github.com/netapp/cake/pkg/providers"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/object"
 )
@@ -17,17 +18,17 @@ type Session struct {
 	Network      object.NetworkReference
 }
 
-// ProviderVsphere spec for CAPV
-type ProviderVsphere struct {
-	engines.MgmtCluster     `yaml:",inline" json:",inline" mapstructure:",squash"`
+// MgmtBootstrap spec for CAPV
+type MgmtBootstrap struct {
+	providers.Spec                `yaml:",inline" json:",inline" mapstructure:",squash"`
 	vsphereConfig.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
-	Session                *Session               `yaml:"-" json:"-" mapstructure:"-"`
-	Resources              map[string]interface{} `yaml:"-" json:"-" mapstructure:"-"`
+	cluster.CAPIConfig            `yaml:",inline" json:",inline" mapstructure:",squash"`
+	Session                       *Session               `yaml:"-" json:"-" mapstructure:"-"`
+	Resources                     map[string]interface{} `yaml:"-" json:"-" mapstructure:"-"`
 }
 
-
 // Client setups connection to remote vCenter
-func (v *ProviderVsphere) Client() error {
+func (v *MgmtBootstrap) Client() error {
 	c, err := NewClient(v.URL, v.Username, v.Password)
 	if err != nil {
 		return err

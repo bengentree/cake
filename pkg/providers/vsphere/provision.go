@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/netapp/cake/pkg/providers"
 	log "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 )
@@ -20,7 +19,7 @@ type tcp struct {
 }
 
 // Provision calls the process to create the management cluster
-func (v *ProviderVsphere) Provision(spec *providers.Spec) error {
+func (v *MgmtBootstrap) Provision() error {
 	bootstrapVMIP, err := GetVMIP(v.Resources["bootstrapVM"].(*object.VirtualMachine))
 	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
 
