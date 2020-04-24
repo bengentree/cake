@@ -1,18 +1,18 @@
 package capv
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/cmds"
 )
 
 // PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster
 func (m MgmtCluster) PivotControlPlane() error {
 	var err error
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}

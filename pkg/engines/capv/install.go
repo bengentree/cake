@@ -2,11 +2,11 @@ package capv
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/config/events"
 
 	"github.com/netapp/cake/pkg/cmds"
@@ -15,7 +15,7 @@ import (
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
 func (m MgmtCluster) InstallControlPlane() error {
 	var err error
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}

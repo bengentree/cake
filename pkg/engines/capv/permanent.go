@@ -2,10 +2,10 @@ package capv
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/cmds"
 	v1 "k8s.io/api/core/v1"
 )
@@ -15,7 +15,7 @@ func (m MgmtCluster) CreatePermanent() error {
 	var err error
 	var capiConfig string
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}

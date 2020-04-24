@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,7 +32,7 @@ func setup() {
 }
 
 func shutdown() {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		log.Fatal(err)
 	}

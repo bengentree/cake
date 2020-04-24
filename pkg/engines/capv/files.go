@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 type fileOnDisk struct {
@@ -170,7 +172,7 @@ stringData:
 func writeToDisk(dirname string, fileName string, specFile []byte, perms os.FileMode) error {
 	var err error
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}

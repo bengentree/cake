@@ -1,19 +1,18 @@
 package vsphere
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestCmd(t *testing.T) {
 
-	//tcp, err := newTCPConn("172.60.0.87" + ":" + commandPort)
-	tcp, err := newTCPConn("172.60.0.87" + ":" + "4444")
+	//tcp, err := newTCPConn("172.60.0.85" + ":" + commandPort)
+	tcp, err := newTCPConn("172.60.0.85" + ":" + "50001")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cakeCmd := fmt.Sprintf("%s deploy --local --deployment-type capv --config /root/.cake.yaml > /tmp/cake.out", remoteExecutable)
-	cakeCmd = "echo ${HOME} > /tmp/env.log"
+	//cakeCmd := fmt.Sprintf("%s deploy --local --deployment-type capv --config /root/.cake.yaml > /tmp/cake.out", remoteExecutable)
+	cakeCmd := "getent passwd root > /tmp/env.log"
 	tcp.runAsyncCommand(cakeCmd)
 	t.Fail()
 }
