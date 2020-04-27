@@ -12,7 +12,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/vmware/govmomi/object"
 )
 
 type tcp struct {
@@ -21,7 +20,7 @@ type tcp struct {
 
 // Provision calls the process to create the management cluster
 func (v *MgmtBootstrap) Provision() error {
-	bootstrapVMIP, err := GetVMIP(v.Resources[bootstrapVMName].(*object.VirtualMachine))
+	bootstrapVMIP, err := GetVMIP(v.trackedResources.vms[bootstrapVMName])
 	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
 	var filename string
 

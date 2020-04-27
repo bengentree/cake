@@ -10,8 +10,22 @@ import (
 	"github.com/vmware/govmomi/object"
 )
 
-// CreateVMFolder creates all folders in a path like "one/two/three"
-func (s *Session) CreateVMFolder(folderPath string) (map[string]*object.Folder, error) {
+// CreateVMFolders creates all folders in a path like "one/two/three"
+func (s *Session) CreateVMFolders(folderPath string) (map[string]*object.Folder, error) {
+
+	d := time.Now().Add(2 * time.Minute)
+	ctx, cancel := context.WithDeadline(context.Background(), d)
+	defer cancel()
+
+	finder := find.NewFinder(s.Conn.Client, true)
+	finder.SetDatacenter(s.Datacenter)
+	defaultFolderPath, err := finder.DefaultFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	folderPath = strings.TrimPrefix(folderPath, defaultFolderPath.InventoryPath+"/")
+	folderPath = strings.TrimSuffix(folderPath, "/")
 	folders := strings.Split(folderPath, "/")
 	desiredFolders := make(map[string]*object.Folder)
 
@@ -102,4 +116,48 @@ func (s *Session) DeleteVMFolder(folder *object.Folder) (*object.Task, error) {
 	}
 
 	return task, nil
+}
+
+// GetFolder returns a single folder object
+func (s *Session) GetFolder(name string) (*object.Folder, error) {
+	d := time.Now().Add(2 * time.Minute)
+	ctx, cancel := context.WithDeadline(context.Background(), d)
+	defer cancel()
+
+	var desiredFolder *object.Folder
+
+	finder := find.NewFinder(s.Conn.Client, true)
+	finder.SetDatacenter(s.Datacenter)
+	defaultFolderPath, err := finder.DefaultFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(name, "/") {
+		desiredFolder, err = finder.Folder(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		desiredFolder, err = finder.Folder(ctx, defaultFolderPath.InventoryPath+"/"+name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return desiredFolder, err
+}
+
+// GetAllFolders returns all folder object in a datacenter
+func (s *Session) GetAllFolders() ([]*object.Folder, error) {
+	d := time.Now().Add(2 * time.Minute)
+	ctx, cancel := context.WithDeadline(context.Background(), d)
+	defer cancel()
+
+	finder := find.NewFinder(s.Conn.Client, true)
+	finder.SetDatacenter(s.Datacenter)
+	desiredFolder, err := finder.FolderList(ctx, "*")
+	if err != nil {
+		return nil, err
+	}
+	return desiredFolder, err
 }

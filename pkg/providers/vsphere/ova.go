@@ -115,19 +115,21 @@ func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecPar
 	}
 	switch s := spec.ImportSpec.(type) {
 	case *types.VirtualMachineImportSpec:
-		if s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection != nil {
-			s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection = nil
+		if s.ConfigSpec.VAppConfig != nil {
+			if s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection != nil {
+				s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection = nil
+			}
 		}
 	}
 
 	lease, err := vSphere.ResourcePool.ImportVApp(ctx, spec.ImportSpec, vSphere.Folder, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to import the template, %v", err)
+		return nil, fmt.Errorf("1 unable to import the template, %v", err)
 	}
 
 	info, err := lease.Wait(ctx, spec.FileItem)
 	if err != nil {
-		return nil, fmt.Errorf("unable to import the template, %v", err)
+		return nil, fmt.Errorf("2 unable to import the template, %v", err)
 	}
 
 	u := lease.StartUpdater(ctx, info)
@@ -136,13 +138,13 @@ func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecPar
 	for _, i := range info.Items {
 		err = ovaClient.upload(ctx, lease, i, ovaPath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to import the template, %v", err)
+			return nil, fmt.Errorf("3 unable to import the template, %v", err)
 		}
 	}
 
 	err = lease.Complete(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to import the template, %v", err)
+		return nil, fmt.Errorf("4 unable to import the template, %v", err)
 	}
 
 	moref := &info.Entity
@@ -209,6 +211,11 @@ func (h *handler) getImportSpec(ctx context.Context, ovaPath string, resourcePoo
 	o, err := h.readOvf("*.ovf", ovaPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read OVF file from %s, %v", ovaPath, err)
+	}
+	g := types.OvfParseDescriptorParams{}
+	p, err := m.ParseDescriptor(ctx, string(o), g)
+	if err == nil {
+		cisp.NetworkMapping[0].Name = p.Network[0].Name
 	}
 
 	return m.CreateImportSpec(ctx, string(o), resourcePool, datastore, cisp)

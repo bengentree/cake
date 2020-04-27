@@ -20,12 +20,17 @@ type Session struct {
 	Network      object.NetworkReference
 }
 
+type trackedResources struct {
+	folders map[string]*object.Folder
+	vms     map[string]*object.VirtualMachine
+}
+
 // MgmtBootstrap spec for CAPV
 type MgmtBootstrap struct {
 	providers.Spec                `yaml:",inline" json:",inline" mapstructure:",squash"`
 	vsphereConfig.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
-	Session                       *Session               `yaml:"-" json:"-" mapstructure:"-"`
-	Resources                     map[string]interface{} `yaml:"-" json:"-" mapstructure:"-"`
+	Session                       *Session         `yaml:"-" json:"-" mapstructure:"-"`
+	trackedResources              trackedResources `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 type MgmtBootstrapCAPV struct {
@@ -40,12 +45,11 @@ type MgmtBootstrapRKE struct {
 
 func (v *MgmtBootstrapRKE) Client() error {
 	fmt.Println(v.BootstrapIP)
-	panic("stop")
 	return nil
 }
 
 // Client setups connection to remote vCenter
-func (v *MgmtBootstrap) Client() error {
+func (v *MgmtBootstrapCAPV) Client() error {
 	c, err := NewClient(v.URL, v.Username, v.Password)
 	if err != nil {
 		return err
@@ -67,7 +71,20 @@ func (v *MgmtBootstrap) Client() error {
 		return err
 	}
 	v.Session = c
-	v.Resources = make(map[string]interface{})
+	v.trackedResources.folders = make(map[string]*object.Folder)
+	v.trackedResources.vms = make(map[string]*object.VirtualMachine)
 
 	return nil
+}
+
+func (tr *trackedResources) addTrackedFolder(resources map[string]*object.Folder) {
+	for key, value := range resources {
+		tr.folders[key] = value
+	}
+}
+
+func (tr *trackedResources) addTrackedVM(resources map[string]*object.VirtualMachine) {
+	for key, value := range resources {
+		tr.vms[key] = value
+	}
 }

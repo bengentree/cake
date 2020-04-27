@@ -99,7 +99,7 @@ func serveProgress(logfile string, kubeconfig string) {
 
 func runProvider() {
 
-	vsProvider := new(vsphere.MgmtBootstrapRKE)
+	vsProvider := new(vsphere.MgmtBootstrapCAPV)
 	errJ := viper.Unmarshal(&vsProvider)
 	if errJ != nil {
 		log.Fatalf("unable to decode into struct, %v", errJ.Error())
@@ -109,8 +109,8 @@ func runProvider() {
 	controlPlaneCount := vsProvider.ControlPlaneCount
 	workerCount := vsProvider.WorkerCount
 	vsProvider.EventStream = make(chan events.Event)
-	var engineName providers.Bootstrap
-	engineName = vsProvider
+	var providerName providers.Bootstrap
+	providerName = vsProvider
 
 	start := time.Now()
 	log.Info("Welcome to Mission Control")
@@ -138,7 +138,7 @@ func runProvider() {
 		}
 	}()
 
-	err := providers.Run(engineName)
+	err := providers.Run(providerName)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

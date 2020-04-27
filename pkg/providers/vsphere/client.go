@@ -74,15 +74,6 @@ func (s *Session) GetNetwork(name string) (object.NetworkReference, error) {
 	return network, err
 }
 
-func (s *Session) GetFolder(name string) (*object.Folder, error) {
-	finder := find.NewFinder(s.Conn.Client, true)
-	folder, err := finder.Folder(context.TODO(), name)
-	if err != nil {
-		return nil, err
-	}
-	return folder, err
-}
-
 func (s *Session) GetResourcePool(name string) (*object.ResourcePool, error) {
 	finder := find.NewFinder(s.Conn.Client, true)
 	finder.SetDatacenter(s.Datacenter)

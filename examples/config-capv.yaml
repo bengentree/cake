@@ -10,6 +10,7 @@ ManagementNetwork: "NetApp HCI VDS 01-HCI_Internal_mNode_Network"
 StorageNetwork: "NetApp HCI VDS 01-HCI_Internal_Storage_Network"
 Folder: "mgmt"
 OVA:
+  BootstrapTemplate: "http://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"
   NodeTemplate: "http://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"
   LoadbalancerTemplate: "http://storage.googleapis.com/capv-images/extra/haproxy/release/v0.6.0-rc.2/capv-haproxy-v0.6.0-rc.2.ova"
 SSH:

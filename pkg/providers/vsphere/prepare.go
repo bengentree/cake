@@ -2,55 +2,66 @@ package vsphere
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/vmware/govmomi/object"
 	"gopkg.in/yaml.v3"
 )
 
 // Prepare the environment for bootstrapping
 func (v *MgmtBootstrapCAPV) Prepare() error {
 
-	tFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + templatesFolder)
+	tFolderName := fmt.Sprintf("%s/%s", baseFolder, templatesFolder)
+	tFolder, err := v.Session.CreateVMFolders(tFolderName)
 	if err != nil {
 		return err
 	}
-	v.Resources[baseFolder] = tFolder[baseFolder]
-	v.Resources[templatesFolder] = tFolder[templatesFolder]
+	v.trackedResources.addTrackedFolder(tFolder)
 
-	wFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + workloadsFolder)
+	wFolderName := fmt.Sprintf("%s/%s", baseFolder, workloadsFolder)
+	wFolder, err := v.Session.CreateVMFolders(wFolderName)
 	if err != nil {
 		return err
 	}
-	v.Resources[workloadsFolder] = wFolder[workloadsFolder]
+	v.trackedResources.addTrackedFolder(wFolder)
 
-	mFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + mgmtFolder)
+	mFolderName := fmt.Sprintf("%s/%s", baseFolder, mgmtFolder)
+	mFolder, err := v.Session.CreateVMFolders(mFolderName)
 	if err != nil {
 		return err
 	}
-	v.Resources[mgmtFolder] = mFolder[mgmtFolder]
+	v.trackedResources.addTrackedFolder(mFolder)
 
-	bootFolder, err := v.Session.CreateVMFolder(baseFolder + "/" + bootstrapFolder)
+	bootFolderName := fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder)
+	bootFolder, err := v.Session.CreateVMFolders(bootFolderName)
 	if err != nil {
 		return err
 	}
-	v.Resources[bootstrapFolder] = bootFolder[bootstrapFolder]
+	v.trackedResources.addTrackedFolder(bootFolder)
 
 	if v.Folder != "" {
-		FolderFromConfig, err := v.Session.CreateVMFolder(baseFolder + "/" + v.Folder)
-		if err != nil {
-			return err
+		if strings.HasPrefix(v.Folder, "/") {
+			_, err := v.Session.CreateVMFolders(v.Folder)
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := v.Session.CreateVMFolders(baseFolder + "/" + v.Folder)
+			if err != nil {
+				return err
+			}
+			v.Folder = baseFolder + "/" + v.Folder
 		}
-		v.Resources["FolderFromConfig"] = FolderFromConfig[v.Folder]
-		v.Folder = v.Resources["FolderFromConfig"].(*object.Folder).InventoryPath
 	} else {
-		v.Folder = v.Resources[mgmtFolder].(*object.Folder).InventoryPath
+		v.Folder = mFolder[mgmtFolder].InventoryPath
 	}
 
+	v.Session.Folder = tFolder[templatesFolder]
+	ovas, err := v.Session.DeployOVATemplates(v.OVA.BootstrapTemplate, v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
+	if err != nil {
+		return err
+	}
 	v.Session.Folder = bootFolder[bootstrapFolder]
-	ovas, err := v.Session.DeployOVATemplates(v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
-
-	v.Resources[v.OVA.NodeTemplate] = ovas[v.OVA.NodeTemplate]
-	v.Resources[v.OVA.LoadbalancerTemplate] = ovas[v.OVA.LoadbalancerTemplate]
+	v.trackedResources.addTrackedVM(ovas)
 
 	configYaml, err := yaml.Marshal(v)
 	if err != nil {
@@ -72,11 +83,11 @@ cat <<EOF> %s
 EOF
 
 `, fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable), fmt.Sprintf(runRemoteCmd, commandPort), remoteConfig, configYaml)
-	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.NodeTemplate], bootstrapVMName, script, v.SSH.AuthorizedKey, v.SSH.Username)
+	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.BootstrapTemplate], bootstrapVMName, script, v.SSH.AuthorizedKey, v.SSH.Username)
 	if err != nil {
 		return err
 	}
-	v.Resources[bootstrapVMName] = bootstrapVM
+	v.trackedResources.vms[bootstrapVMName] = bootstrapVM
 
 	return err
 }
