@@ -20,9 +20,9 @@ type Session struct {
 	Network      object.NetworkReference
 }
 
-type trackedResources struct {
-	folders map[string]*object.Folder
-	vms     map[string]*object.VirtualMachine
+type TrackedResources struct {
+	Folders map[string]*object.Folder
+	VMs     map[string]*object.VirtualMachine
 }
 
 // MgmtBootstrap spec for CAPV
@@ -30,7 +30,7 @@ type MgmtBootstrap struct {
 	providers.Spec                `yaml:",inline" json:",inline" mapstructure:",squash"`
 	vsphereConfig.ProviderVsphere `yaml:",inline" json:",inline" mapstructure:",squash"`
 	Session                       *Session         `yaml:"-" json:"-" mapstructure:"-"`
-	trackedResources              trackedResources `yaml:"-" json:"-" mapstructure:"-"`
+	TrackedResources              TrackedResources `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 type MgmtBootstrapCAPV struct {
@@ -71,20 +71,20 @@ func (v *MgmtBootstrapCAPV) Client() error {
 		return err
 	}
 	v.Session = c
-	v.trackedResources.folders = make(map[string]*object.Folder)
-	v.trackedResources.vms = make(map[string]*object.VirtualMachine)
+	v.TrackedResources.Folders = make(map[string]*object.Folder)
+	v.TrackedResources.VMs = make(map[string]*object.VirtualMachine)
 
 	return nil
 }
 
-func (tr *trackedResources) addTrackedFolder(resources map[string]*object.Folder) {
+func (tr *TrackedResources) addTrackedFolder(resources map[string]*object.Folder) {
 	for key, value := range resources {
-		tr.folders[key] = value
+		tr.Folders[key] = value
 	}
 }
 
-func (tr *trackedResources) addTrackedVM(resources map[string]*object.VirtualMachine) {
+func (tr *TrackedResources) addTrackedVM(resources map[string]*object.VirtualMachine) {
 	for key, value := range resources {
-		tr.vms[key] = value
+		tr.VMs[key] = value
 	}
 }

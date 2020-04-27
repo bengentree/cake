@@ -20,7 +20,7 @@ type tcp struct {
 
 // Provision calls the process to create the management cluster
 func (v *MgmtBootstrap) Provision() error {
-	bootstrapVMIP, err := GetVMIP(v.trackedResources.vms[bootstrapVMName])
+	bootstrapVMIP, err := GetVMIP(v.TrackedResources.VMs[bootstrapVMName])
 	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
 	var filename string
 

@@ -15,28 +15,28 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 	if err != nil {
 		return err
 	}
-	v.trackedResources.addTrackedFolder(tFolder)
+	v.TrackedResources.addTrackedFolder(tFolder)
 
 	wFolderName := fmt.Sprintf("%s/%s", baseFolder, workloadsFolder)
 	wFolder, err := v.Session.CreateVMFolders(wFolderName)
 	if err != nil {
 		return err
 	}
-	v.trackedResources.addTrackedFolder(wFolder)
+	v.TrackedResources.addTrackedFolder(wFolder)
 
 	mFolderName := fmt.Sprintf("%s/%s", baseFolder, mgmtFolder)
 	mFolder, err := v.Session.CreateVMFolders(mFolderName)
 	if err != nil {
 		return err
 	}
-	v.trackedResources.addTrackedFolder(mFolder)
+	v.TrackedResources.addTrackedFolder(mFolder)
 
 	bootFolderName := fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder)
 	bootFolder, err := v.Session.CreateVMFolders(bootFolderName)
 	if err != nil {
 		return err
 	}
-	v.trackedResources.addTrackedFolder(bootFolder)
+	v.TrackedResources.addTrackedFolder(bootFolder)
 
 	if v.Folder != "" {
 		fromConfig, err := v.Session.CreateVMFolders(v.Folder)
@@ -54,8 +54,8 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 	if err != nil {
 		return err
 	}
+	v.TrackedResources.addTrackedVM(ovas)
 	v.Session.Folder = bootFolder[bootstrapFolder]
-	v.trackedResources.addTrackedVM(ovas)
 
 	configYaml, err := yaml.Marshal(v)
 	if err != nil {
@@ -81,7 +81,7 @@ EOF
 	if err != nil {
 		return err
 	}
-	v.trackedResources.vms[bootstrapVMName] = bootstrapVM
+	v.TrackedResources.VMs[bootstrapVMName] = bootstrapVM
 
 	return err
 }
