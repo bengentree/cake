@@ -10,33 +10,20 @@ import (
 // Prepare the environment for bootstrapping
 func (v *MgmtBootstrapCAPV) Prepare() error {
 
-	tFolderName := fmt.Sprintf("%s/%s", baseFolder, templatesFolder)
-	tFolder, err := v.Session.CreateVMFolders(tFolderName)
-	if err != nil {
-		return err
+	desiredFolders := []string{
+		fmt.Sprintf("%s/%s", baseFolder, templatesFolder),
+		fmt.Sprintf("%s/%s", baseFolder, workloadsFolder),
+		fmt.Sprintf("%s/%s", baseFolder, mgmtFolder),
+		fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder),
 	}
-	v.TrackedResources.addTrackedFolder(tFolder)
 
-	wFolderName := fmt.Sprintf("%s/%s", baseFolder, workloadsFolder)
-	wFolder, err := v.Session.CreateVMFolders(wFolderName)
-	if err != nil {
-		return err
+	for _, f := range desiredFolders {
+		tempFolder, err := v.Session.CreateVMFolders(f)
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(tempFolder)
 	}
-	v.TrackedResources.addTrackedFolder(wFolder)
-
-	mFolderName := fmt.Sprintf("%s/%s", baseFolder, mgmtFolder)
-	mFolder, err := v.Session.CreateVMFolders(mFolderName)
-	if err != nil {
-		return err
-	}
-	v.TrackedResources.addTrackedFolder(mFolder)
-
-	bootFolderName := fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder)
-	bootFolder, err := v.Session.CreateVMFolders(bootFolderName)
-	if err != nil {
-		return err
-	}
-	v.TrackedResources.addTrackedFolder(bootFolder)
 
 	if v.Folder != "" {
 		fromConfig, err := v.Session.CreateVMFolders(v.Folder)
@@ -46,16 +33,16 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
 
 	} else {
-		v.Folder = mFolder[mgmtFolder].InventoryPath
+		v.Folder = v.TrackedResources.Folders[mgmtFolder].InventoryPath
 	}
 
-	v.Session.Folder = tFolder[templatesFolder]
+	v.Session.Folder = v.TrackedResources.Folders[templatesFolder]
 	ovas, err := v.Session.DeployOVATemplates(v.OVA.BootstrapTemplate, v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
 	if err != nil {
 		return err
 	}
 	v.TrackedResources.addTrackedVM(ovas)
-	v.Session.Folder = bootFolder[bootstrapFolder]
+	v.Session.Folder = v.TrackedResources.Folders[bootstrapFolder]
 
 	configYaml, err := yaml.Marshal(v)
 	if err != nil {
