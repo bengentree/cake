@@ -19,12 +19,11 @@ func (s *Session) CreateVMFolders(folderPath string) (map[string]*object.Folder,
 
 	finder := find.NewFinder(s.Conn.Client, true)
 	finder.SetDatacenter(s.Datacenter)
-	defaultFolderPath, err := finder.DefaultFolder(ctx)
+	defaultFolder, err := finder.DefaultFolder(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	folderPath = strings.TrimPrefix(folderPath, defaultFolderPath.InventoryPath+"/")
+	folderPath = strings.TrimPrefix(folderPath, defaultFolder.InventoryPath)
 	folderPath = strings.TrimSuffix(folderPath, "/")
 	folders := strings.Split(folderPath, "/")
 	desiredFolders := make(map[string]*object.Folder)
@@ -54,11 +53,14 @@ func (s *Session) createVMFolderRootLevel(folderName string) (*object.Folder, er
 
 	finder := find.NewFinder(s.Conn.Client, true)
 	finder.SetDatacenter(s.Datacenter)
-	iPath := s.Datacenter.InventoryPath + "/vm/" + folderName
+	rootFolder, err := finder.DefaultFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
+	iPath := rootFolder.InventoryPath + "/" + folderName
 	desiredFolder, err := finder.Folder(ctx, iPath)
 	if err != nil {
-		rootFolder := s.Datacenter.InventoryPath + "/vm"
-		folder, err := finder.Folder(ctx, rootFolder)
+		folder, err := finder.Folder(ctx, rootFolder.InventoryPath)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find folder, %v", err)
 		}

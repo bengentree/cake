@@ -2,7 +2,7 @@ package vsphere
 
 import (
 	"fmt"
-	"strings"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -39,18 +39,12 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 	v.trackedResources.addTrackedFolder(bootFolder)
 
 	if v.Folder != "" {
-		if strings.HasPrefix(v.Folder, "/") {
-			_, err := v.Session.CreateVMFolders(v.Folder)
-			if err != nil {
-				return err
-			}
-		} else {
-			_, err := v.Session.CreateVMFolders(baseFolder + "/" + v.Folder)
-			if err != nil {
-				return err
-			}
-			v.Folder = baseFolder + "/" + v.Folder
+		fromConfig, err := v.Session.CreateVMFolders(v.Folder)
+		if err != nil {
+			return err
 		}
+		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
+
 	} else {
 		v.Folder = mFolder[mgmtFolder].InventoryPath
 	}
