@@ -19,15 +19,49 @@ type tcp struct {
 }
 
 // Provision calls the process to create the management cluster
-func (v *MgmtBootstrap) Provision() error {
+func (v *MgmtBootstrapCAPV) Provision() error {
 	bootstrapVMIP, err := GetVMIP(v.TrackedResources.VMs[bootstrapVMName])
 	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
+
+	tcp, err := createConnectionToBootstrap(bootstrapVMIP)
+	if err != nil {
+		return err
+	}
+
+	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType))
+	tcp.runAsyncCommand(cakeCmd)
+
+	return err
+}
+
+func (v *MgmtBootstrapRKE) Provision() error {
+	bootstrapVMIP, err := GetVMIP(v.TrackedResources.VMs[bootstrapVMName])
+	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
+	v.BootstrapIP = bootstrapVMIP
+
+	tcp, err := createConnectionToBootstrap(bootstrapVMIP)
+	if err != nil {
+		return err
+	}
+
+	cakeCmd := fmt.Sprintf("CAKE_BOOTSTRAPIP=%s %s",
+		v.BootstrapIP,
+		fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType)))
+	log.Infof(cakeCmd)
+	tcp.runAsyncCommand(cakeCmd)
+
+	return err
+}
+
+func createConnectionToBootstrap(bootstrapVMIP string) (tcp, error) {
+	var result tcp
+	var err error
 	var filename string
 
 	if runtime.GOOS == "linux" {
 		filename, err = os.Executable()
 		if err != nil {
-			return err
+			return result, err
 		}
 	} else {
 		//TODO get cake linux binary embedded in and use that for the transfer for runtime.GOOS != "linux"
@@ -37,22 +71,16 @@ func (v *MgmtBootstrap) Provision() error {
 	time.Sleep(30 * time.Second)
 	tcpUpload, err := newTCPConn(bootstrapVMIP + ":" + uploadPort)
 	if err != nil {
-		return err
+		return result, err
 	}
 	err = tcpUpload.uploadFile(filename)
 	if err != nil {
-		return err
+		return result, err
 	}
 	// TODO wait until host prereqs are installed and ready
 	time.Sleep(30 * time.Second)
-	tcp, err := newTCPConn(bootstrapVMIP + ":" + commandPort)
-	if err != nil {
-		return err
-	}
-	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType))
-	tcp.runAsyncCommand(cakeCmd)
-
-	return err
+	result, err = newTCPConn(bootstrapVMIP + ":" + commandPort)
+	return result, err
 }
 
 func newTCPConn(serverAddr string) (tcp, error) {

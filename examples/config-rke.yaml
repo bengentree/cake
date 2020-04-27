@@ -1,7 +1,7 @@
 BootstrapIP: "172.60.0.62"
 Datacenter: "/NetApp-HCI-Datacenter-01"
 Datastore: "/NetApp-HCI-Datacenter-01/datastore/NetApp-HCI-Datastore-01"
-Folder: "/NetApp-HCI-Datacenter-01/vm/rancher"
+Folder: "/NetApp-HCI-Datacenter-01/vm/cake/rancher"
 ManagementNetwork: "/NetApp-HCI-Datacenter-01/network/VM_Network"
 ResourcePool: "/NetApp-HCI-Datacenter-01/host/NetApp-HCI-Cluster-01/Resources/rancher"
 URL: "172.60.0.151"
@@ -11,4 +11,12 @@ ClusterName: "rke-mgmt-cluster"
 KubernetesVersion: "v1.17.4-rancher1-3"
 ControlPlaneCount: "1"
 WorkerCount: "2"
-LogFile: "/tmp/cluster-engine.log"
+LogFile: "/tmp/cake.log"
+OVA:
+  BootstrapTemplate: "http://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"
+SSH:
+  Username: "rke"
+  AuthorizedKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/0u1rdJJLt4ycshZg7zsbMbK/nydyn4rYuK7UXTtoH53geMbsxxwGOTZMKaTA4bVgSKBEwybVodfEzEsnsBgigUN/0OXAos6mWosDj8rPNGZ8lr7Sefn5x6ZhESVIuwpDp+bEukCYp6V+FtNiL2U+iWM5eOpl1vvPNMcYXhBdU948RZrubMTa8QlyzSY1Go46gfmVtW+pdXLxGM2sTXlKTA2IxMabmF/BxbVmoQPCNoFObtGxTBNfytbv4yZN73xq52xOvwhiOiLEo3Kj3vbjP49L750oaKKRIP62cd0/dU4y3r8OyJSJehpSYQhwy5slUjIl3KI/QRE8yuTX3+kV"
+Local: true
+ProviderType: "vsphere"
+EngineType: "rke"

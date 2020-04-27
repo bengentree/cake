@@ -98,19 +98,33 @@ func serveProgress(logfile string, kubeconfig string) {
 }
 
 func runProvider() {
-
-	vsProvider := new(vsphere.MgmtBootstrapCAPV)
-	errJ := viper.Unmarshal(&vsProvider)
-	if errJ != nil {
-		log.Fatalf("unable to decode into struct, %v", errJ.Error())
+	var clusterName string
+	var controlPlaneCount int
+	var workerCount int
+	var bootstrap providers.Bootstrap
+	if deploymentType == "capv" {
+		vsProvider := new(vsphere.MgmtBootstrapCAPV)
+		errJ := viper.Unmarshal(&vsProvider)
+		if errJ != nil {
+			log.Fatalf("unable to decode into struct, %v", errJ.Error())
+		}
+		clusterName = vsProvider.ClusterName
+		controlPlaneCount = vsProvider.ControlPlaneCount
+		workerCount = vsProvider.WorkerCount
+		vsProvider.EventStream = make(chan events.Event)
+		bootstrap = vsProvider
+	} else if deploymentType == "rke" {
+		vsProvider := new(vsphere.MgmtBootstrapRKE)
+		errJ := viper.Unmarshal(&vsProvider)
+		if errJ != nil {
+			log.Fatalf("unable to decode into struct, %v", errJ.Error())
+		}
+		clusterName = vsProvider.ClusterName
+		controlPlaneCount = vsProvider.ControlPlaneCount
+		workerCount = vsProvider.WorkerCount
+		vsProvider.EventStream = make(chan events.Event)
+		bootstrap = vsProvider
 	}
-
-	clusterName := vsProvider.ClusterName
-	controlPlaneCount := vsProvider.ControlPlaneCount
-	workerCount := vsProvider.WorkerCount
-	vsProvider.EventStream = make(chan events.Event)
-	var providerName providers.Bootstrap
-	providerName = vsProvider
 
 	start := time.Now()
 	log.Info("Welcome to Mission Control")
@@ -119,7 +133,7 @@ func runProvider() {
 		"ControlPlaneMachineCount": controlPlaneCount,
 		"workerMachineCount":       workerCount,
 	}).Info("Let's launch a cluster")
-	progress := vsProvider.Events()
+	progress := bootstrap.Events()
 	go func() {
 		for {
 			select {
@@ -138,13 +152,12 @@ func runProvider() {
 		}
 	}()
 
-	err := providers.Run(providerName)
+	err := providers.Run(bootstrap)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
-
 }
 
 func runEngine() {

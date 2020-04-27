@@ -32,6 +32,9 @@ func (s *Session) DeployOVATemplates(templatePaths ...string) (map[string]*objec
 
 	var g errgroup.Group
 	for _, template := range templatePaths {
+		if template == "" {
+			continue
+		}
 		template := template
 		g.Go(func() error {
 			r, err := s.deployOVATemplate(template)

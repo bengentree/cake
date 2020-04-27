@@ -17,6 +17,6 @@ type ProviderVsphere struct {
 // OVASpec sets OVA information used for virtual machine templates
 type OVASpec struct {
 	BootstrapTemplate    string `yaml:"BootstrapTemplate" json:"bootstraptemplate"`
-	NodeTemplate         string `yaml:"NodeTemplate" json:"nodetemplate"`
-	LoadbalancerTemplate string `yaml:"LoadbalancerTemplate" json:"loadbalancertemplate"`
+	NodeTemplate         string `yaml:"NodeTemplate" json:"nodetemplate,omitempty"`
+	LoadbalancerTemplate string `yaml:"LoadbalancerTemplate" json:"loadbalancertemplate,omitempty"`
 }

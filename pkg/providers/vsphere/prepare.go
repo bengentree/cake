@@ -7,8 +7,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Prepare the environment for bootstrapping
+func (v *MgmtBootstrapRKE) Prepare() error {
+	configYAML, err := yaml.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	return v.MgmtBootstrap.prepare(configYAML)
+}
+
 func (v *MgmtBootstrapCAPV) Prepare() error {
+	configYAML, err := yaml.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	return v.MgmtBootstrap.prepare(configYAML)
+}
+
+// Prepare the environment for bootstrapping
+func (v *MgmtBootstrap) prepare(configYAML []byte) error {
 
 	desiredFolders := []string{
 		fmt.Sprintf("%s/%s", baseFolder, templatesFolder),
@@ -44,10 +62,6 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 	v.TrackedResources.addTrackedVM(ovas)
 	v.Session.Folder = v.TrackedResources.Folders[bootstrapFolder]
 
-	configYaml, err := yaml.Marshal(v)
-	if err != nil {
-		return err
-	}
 	// TODO put in cloudinit engine specific bootstrap VM prereqs.
 	script := fmt.Sprintf(`#!/bin/bash
 
@@ -63,7 +77,7 @@ cat <<EOF> %s
 %s
 EOF
 
-`, fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable), fmt.Sprintf(runRemoteCmd, commandPort), remoteConfig, configYaml)
+`, fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable), fmt.Sprintf(runRemoteCmd, commandPort), remoteConfig, configYAML)
 	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.BootstrapTemplate], bootstrapVMName, script, v.SSH.AuthorizedKey, v.SSH.Username)
 	if err != nil {
 		return err

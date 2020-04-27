@@ -1,8 +1,6 @@
 package vsphere
 
 import (
-	"fmt"
-
 	"github.com/netapp/cake/pkg/config/cluster"
 	vsphereConfig "github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/providers"
@@ -43,13 +41,8 @@ type MgmtBootstrapRKE struct {
 	BootstrapIP   string `yaml:"BootstrapIP" json:"BootstrapIP"`
 }
 
-func (v *MgmtBootstrapRKE) Client() error {
-	fmt.Println(v.BootstrapIP)
-	return nil
-}
-
 // Client setups connection to remote vCenter
-func (v *MgmtBootstrapCAPV) Client() error {
+func (v *MgmtBootstrap) Client() error {
 	c, err := NewClient(v.URL, v.Username, v.Password)
 	if err != nil {
 		return err
