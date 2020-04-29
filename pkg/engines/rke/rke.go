@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/docker/docker/api/types/network"
-	"github.com/netapp/cake/pkg/config/events"
-	"github.com/netapp/cake/pkg/config/vsphere"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"net/http/httputil"
@@ -19,16 +16,19 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/netapp/cake/pkg/cmds"
+	"github.com/netapp/cake/pkg/config/events"
+	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
-	"github.com/prometheus/common/log"
 	"github.com/rancher/norman/clientbase"
 	rTypes "github.com/rancher/norman/types"
 	v3 "github.com/rancher/types/client/management/v3"
 	v3public "github.com/rancher/types/client/management/v3public"
 	v3project "github.com/rancher/types/client/project/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 type requiredCmd string
