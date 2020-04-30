@@ -22,3 +22,5 @@ SSH:
 Local: true
 ProviderType: "vsphere"
 EngineType: "rke"
+Nodes:
+  C
