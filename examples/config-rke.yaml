@@ -24,3 +24,4 @@ ProviderType: "vsphere"
 EngineType: "rke"
 Nodes:
   controlPlaneNode1: "172.60.5.47"
+Hostname: "rancher.my.org"

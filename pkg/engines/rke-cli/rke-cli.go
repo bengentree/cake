@@ -13,18 +13,16 @@ import (
 	"github.com/netapp/cake/pkg/config/events"
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/cli/values"
-	"helm.sh/helm/v3/pkg/getter"
+	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"os/exec"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	//v3 "github.com/rancher/types/apis/management.cattle.io/v3"
-	"helm.sh/helm/v3/pkg/repo"
+
 	"io/ioutil"
 	"os"
 )
@@ -66,6 +64,7 @@ type MgmtCluster struct {
 	//rancherClient           *v3.Client
 	BootstrapIP             string            `yaml:"BootstrapIP"`
 	Nodes                   map[string]string `yaml:"Nodes" json:"nodes"`
+	Hostname				string `yaml:"Hostname"`
 	dockerCli               dockerCmds
 	osCli                   genericCmds
 }
@@ -246,6 +245,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	}
 	*/
 
+	//return nil
 	var y map[string]interface{}
 	err := yaml.Unmarshal([]byte(clusterYMLUnused), &y)
 	if err != nil {
@@ -333,8 +333,10 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	return err
 }
 
+
 // CreatePermanent deploys HA RKE cluster to vSphere
 func (c *MgmtCluster) CreatePermanent() error {
+	/*
 	os.Setenv("HELM_KUBETOKEN", "kube_config_rke-cluster.yml")
 
 	// https://github.com/PrasadG193/helm-clientgo-example/blob/master/main.go
@@ -377,36 +379,34 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	/*
-	validInstallableChart, err := isChartInstallable(chartRequested)
-	if !validInstallableChart {
-		log.Fatal(err)
-	}
-
-	if req := chartRequested.Metadata.Dependencies; req != nil {
-		// If CheckDependencies returns an error, we have unfulfilled dependencies.
-		// As of Helm 2.4.0, this is treated as a stopping condition:
-		// https://github.com/helm/helm/issues/2209
-		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			if client.DependencyUpdate {
-				man := &downloader.Manager{
-					Out:              os.Stdout,
-					ChartPath:        cp,
-					Keyring:          client.ChartPathOptions.Keyring,
-					SkipUpdate:       false,
-					Getters:          p,
-					RepositoryConfig: settings.RepositoryConfig,
-					RepositoryCache:  settings.RepositoryCache,
-				}
-				if err := man.Update(); err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				log.Fatal(err)
-			}
-		}
-	}
-	*/
+	//validInstallableChart, err := isChartInstallable(chartRequested)
+	//if !validInstallableChart {
+	//	log.Fatal(err)
+	//}
+	//
+	//if req := chartRequested.Metadata.Dependencies; req != nil {
+	//	// If CheckDependencies returns an error, we have unfulfilled dependencies.
+	//	// As of Helm 2.4.0, this is treated as a stopping condition:
+	//	// https://github.com/helm/helm/issues/2209
+	//	if err := action.CheckDependencies(chartRequested, req); err != nil {
+	//		if client.DependencyUpdate {
+	//			man := &downloader.Manager{
+	//				Out:              os.Stdout,
+	//				ChartPath:        cp,
+	//				Keyring:          client.ChartPathOptions.Keyring,
+	//				SkipUpdate:       false,
+	//				Getters:          p,
+	//				RepositoryConfig: settings.RepositoryConfig,
+	//				RepositoryCache:  settings.RepositoryCache,
+	//			}
+	//			if err := man.Update(); err != nil {
+	//				log.Fatal(err)
+	//			}
+	//		} else {
+	//			log.Fatal(err)
+	//		}
+	//	}
+	//}
 
 	client.Namespace = settings.Namespace()
 	release, err := client.Run(chartRequested, vals)
@@ -414,10 +414,58 @@ func (c *MgmtCluster) CreatePermanent() error {
 		log.Fatal(err)
 	}
 	log.Info(release.Manifest)
+	*/
+	return nil
 }
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
+	args := []string{
+		"repo",
+		"add",
+		"rancher-latest",
+		"https://releases.rancher.com/server-charts/latest",
+	}
+	err := c.osCli.GenericExecute(nil, "helm", args, nil)
+	if err != nil {
+		return err
+	}
+
+	kubeConfigFile := "kube_config_rke-cluster.yml"
+	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
+	if err != nil {
+		return err
+	}
+	
+	kube, err := kubernetes.NewForConfig(kubeCfg)
+	if err != nil {
+		return err
+	}
+	
+	_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
+		ObjectMeta: v12.ObjectMeta{
+			Name: "cattle-system",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	args = []string{
+		"install",
+		"rancher",
+		"rancher-latest/rancher",
+		"--namespace=cattle-system",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		"--set tls=external",
+		//fmt.Sprintf("--set hostname=%s", c.Hostname),
+	}
+	err = c.osCli.GenericExecute(nil, "helm", args, nil)
+	if err != nil {
+		return err
+	}
+
+	//kube.CoreV1().Pods("").Watch()
 	return nil
 }
 
