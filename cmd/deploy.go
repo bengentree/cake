@@ -184,6 +184,8 @@ func runEngine() {
 		engineName = engine
 
 	} else if deploymentType == "rke" {
+		// CAKE_RKE_DOCKER will deploy RKE from a docker container,
+		// else RKE will be deployed using rke cli1
 		rkeDockerEnv := os.Getenv("CAKE_RKE_DOCKER")
 		if rkeDockerEnv != "" {
 			engine := rke.NewMgmtClusterFullConfig()
