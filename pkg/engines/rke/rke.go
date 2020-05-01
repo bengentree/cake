@@ -1,5 +1,6 @@
 package rke
 
+/*
 import (
 	"bytes"
 	"context"
@@ -716,18 +717,16 @@ func waitForAvailable(cFunc func() []v3project.DeploymentCondition) error {
 func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 	mgmtCount := int64(c.ControlPlaneCount)
 	workerCount := int64(c.WorkerCount)
-	/*
-		mgmtCount, err := strconv.ParseInt(c.ControlPlaneCount, 10, 64)
-		if err != nil {
-			log.Warnf("Unable to parse ControlPlaneMachineCount, defaulting to 1: %s", err)
-			mgmtCount = 1
-		}
-		workerCount, err := strconv.ParseInt(c.WorkerMachineCount, 10, 64)
-		if err != nil {
-			log.Warnf("Unable to parse WorkerMachineCount, defaulting to 2: %s", err)
-			workerCount = 2
-		}
-	*/
+		//mgmtCount, err := strconv.ParseInt(c.ControlPlaneCount, 10, 64)
+		//if err != nil {
+		//	log.Warnf("Unable to parse ControlPlaneMachineCount, defaulting to 1: %s", err)
+		//	mgmtCount = 1
+		//}
+		//workerCount, err := strconv.ParseInt(c.WorkerMachineCount, 10, 64)
+		//if err != nil {
+		//	log.Warnf("Unable to parse WorkerMachineCount, defaulting to 2: %s", err)
+		//	workerCount = 2
+		//}
 	nodePools := []struct {
 		prefix string
 		count  int64
@@ -815,4 +814,4 @@ func waitForRancherAPI() error {
 			}
 		}
 	}
-}
+}*/

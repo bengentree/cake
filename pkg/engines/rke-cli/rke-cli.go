@@ -1,7 +1,9 @@
 package rke_cli
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -11,12 +13,20 @@ import (
 	"github.com/netapp/cake/pkg/config/events"
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
-	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
-	"io/ioutil"
-	"os"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/cli/values"
+	"helm.sh/helm/v3/pkg/getter"
+	"os/exec"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	//v3 "github.com/rancher/types/apis/management.cattle.io/v3"
+	"helm.sh/helm/v3/pkg/repo"
+	"io/ioutil"
+	"os"
 )
 
 type requiredCmd string
@@ -53,7 +63,7 @@ type MgmtCluster struct {
 	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
 	token                   string
 	clusterURL              string
-	rancherClient           *v3.Client
+	//rancherClient           *v3.Client
 	BootstrapIP             string            `yaml:"BootstrapIP"`
 	Nodes                   map[string]string `yaml:"Nodes" json:"nodes"`
 	dockerCli               dockerCmds
@@ -172,6 +182,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 func (c *MgmtCluster) InstallControlPlane() error {
 	c.EventStream <- events.Event{EventType: "progress", Event: "install HA rke cluster"}
 
+	/*
 	rkeConfig := &v3.RancherKubernetesEngineConfig{
 		Nodes: make([]v3.RKEConfigNode, len(c.Nodes)),
 		Services: v3.RKEConfigServices{
@@ -233,33 +244,176 @@ func (c *MgmtCluster) InstallControlPlane() error {
 		lastNode := rkeConfig.Nodes[len(rkeConfig.Nodes)-1]
 		lastNode.Role = lastNode.Role[1:]
 	}
-	clusterYML, err := yaml.Marshal(rkeConfig)
+	*/
+
+	var y map[string]interface{}
+	err := yaml.Unmarshal([]byte(clusterYMLUnused), &y)
 	if err != nil {
 		return err
 	}
-	yamlFile := "~/rke-cluster.yml"
+
+	log.Info(len(c.Nodes))
+	nodeKeys := make([]string, 0)
+	for k := range c.Nodes {
+		nodeKeys = append(nodeKeys, k)
+	}
+	log.Info(len(nodeKeys))
+
+	log.Info(nodeKeys)
+	nodes := y["nodes"].([]interface{})
+	for i, key := range nodeKeys {
+		log.Infof("i: %d key: %s", i, key)
+		log.Infof("setting node %s with ip %s", key, c.Nodes[nodeKeys[i]])
+		node := nodes[i].(map[string]interface{})
+		node["address"] = c.Nodes[nodeKeys[i]]
+		node["user"] = c.SSH.Username
+	}
+
+
+
+
+	clusterYML, err := yaml.Marshal(y)
+	//clusterYML, err := yaml.Marshal(rkeConfig)
+	if err != nil {
+		return err
+	}
+	yamlFile := "rke-cluster.yml"
 	err = ioutil.WriteFile(yamlFile, clusterYML, 0644)
 	if err != nil {
 		return err
 	}
 
-	args := []string{
-		"rke",
-		"up",
-		"--config",
-		yamlFile,
+	//args := []string{
+	//	"up",
+	//	"--config",
+	//	yamlFile,
+	//}
+	//err = c.osCli.GenericExecute(nil, "rke", args, nil)
+	//if err != nil {
+	//	return err
+	//}
+
+	// https://gist.github.com/hivefans/ffeaf3964924c943dd7ed83b406bbdea
+	cmd := exec.Command("rke", "up", "--config", yamlFile)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+
 	}
-	err = c.osCli.GenericExecute(nil, "rke up", args, nil)
+	err = cmd.Start()
 	if err != nil {
 		return err
 	}
+	r := bufio.NewReader(stdout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute * 5)
+	defer cancel()
+	//stop := make(chan bool)
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <- ctx.Done():
+				return
+			default:
+				line, _, _ := r.ReadLine()
+				lineStr := string(line)
+				log.Infoln(lineStr)
+				if strings.Contains(lineStr, "FATA") ||
+					strings.Contains(lineStr, "Finished") {
+					return
+				}
 
-	return nil
+			}
+			//if shouldStop := <- stop; shouldStop {
+			//	return
+			//}
+		}
+	}(ctx)
+
+	err = cmd.Wait()
+	ctx.Done()
+	return err
 }
 
 // CreatePermanent deploys HA RKE cluster to vSphere
 func (c *MgmtCluster) CreatePermanent() error {
-	return nil
+	os.Setenv("HELM_KUBETOKEN", "kube_config_rke-cluster.yml")
+
+	// https://github.com/PrasadG193/helm-clientgo-example/blob/master/main.go
+	settings := cli.New()
+	chRepo, err := repo.NewChartRepository(
+		&repo.Entry{
+			Name:                  "rancher-latest",
+			URL:                   "https://releases.rancher.com/server-charts/latest",
+			InsecureSkipTLSverify: true,
+		},
+		getter.All(settings))
+	if err != nil {
+		return err
+	}
+
+	_, err = chRepo.DownloadIndexFile()
+
+	actionConfig := new(action.Configuration)
+	err = actionConfig.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Infof)
+	if err != nil {
+		return err
+	}
+
+	client := action.NewInstall(actionConfig)
+	client.ChartPathOptions.RepoURL ="https://releases.rancher.com/server-charts/latest"
+	cp, err := client.ChartPathOptions.LocateChart("rancher-latest", settings)
+	if err != nil {
+		return err
+	}
+
+	p := getter.All(settings)
+	valueOpts := &values.Options{}
+	vals, err := valueOpts.MergeValues(p)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	chartRequested, err := loader.Load(cp)
+	if err != nil {
+		return err
+	}
+
+	/*
+	validInstallableChart, err := isChartInstallable(chartRequested)
+	if !validInstallableChart {
+		log.Fatal(err)
+	}
+
+	if req := chartRequested.Metadata.Dependencies; req != nil {
+		// If CheckDependencies returns an error, we have unfulfilled dependencies.
+		// As of Helm 2.4.0, this is treated as a stopping condition:
+		// https://github.com/helm/helm/issues/2209
+		if err := action.CheckDependencies(chartRequested, req); err != nil {
+			if client.DependencyUpdate {
+				man := &downloader.Manager{
+					Out:              os.Stdout,
+					ChartPath:        cp,
+					Keyring:          client.ChartPathOptions.Keyring,
+					SkipUpdate:       false,
+					Getters:          p,
+					RepositoryConfig: settings.RepositoryConfig,
+					RepositoryCache:  settings.RepositoryCache,
+				}
+				if err := man.Update(); err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				log.Fatal(err)
+			}
+		}
+	}
+	*/
+
+	client.Namespace = settings.Namespace()
+	release, err := client.Run(chartRequested, vals)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Info(release.Manifest)
 }
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
