@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/netapp/cake/pkg/engines/rke"
+	rke_cli "github.com/netapp/cake/pkg/engines/rke-cli"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,7 +21,6 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/engines"
 	"github.com/netapp/cake/pkg/engines/capv"
-	"github.com/netapp/cake/pkg/engines/rke"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -183,17 +184,32 @@ func runEngine() {
 		engineName = engine
 
 	} else if deploymentType == "rke" {
-		engine := rke.NewMgmtClusterFullConfig()
-		errJ := viper.Unmarshal(&engine)
-		if errJ != nil {
-			log.Fatalf("unable to decode into struct, %v", errJ.Error())
+		rkeDockerEnv := os.Getenv("CAKE_RKE_DOCKER")
+		if rkeDockerEnv != "" {
+			engine := rke.NewMgmtClusterFullConfig()
+			errJ := viper.Unmarshal(&engine)
+			if errJ != nil {
+				log.Fatalf("unable to decode into struct, %v", errJ.Error())
+			}
+			clusterName = engine.ClusterName
+			controlPlaneCount = engine.ControlPlaneCount
+			workerCount = engine.WorkerCount
+			logFile = engine.LogFile
+			engine.EventStream = make(chan events.Event)
+			engineName = engine
+		} else {
+			engine := rke_cli.NewMgmtClusterCli()
+			errJ := viper.Unmarshal(&engine)
+			if errJ != nil {
+				log.Fatalf("unable to decode into struct, %v", errJ.Error())
+			}
+			clusterName = engine.ClusterName
+			controlPlaneCount = engine.ControlPlaneCount
+			workerCount = engine.WorkerCount
+			logFile = engine.LogFile
+			engine.EventStream = make(chan events.Event)
+			engineName = engine
 		}
-		clusterName = engine.ClusterName
-		controlPlaneCount = engine.ControlPlaneCount
-		workerCount = engine.WorkerCount
-		logFile = engine.LogFile
-		engine.EventStream = make(chan events.Event)
-		engineName = engine
 	} else {
 		log.Fatal("Currently only implemented deployment-type is `capv`")
 	}

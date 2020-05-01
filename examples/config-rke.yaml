@@ -15,10 +15,14 @@ LogFile: "/tmp/cake.log"
 OVA:
   NodeTemplate: "http://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"
 SSH:
-  Username: "rke"
+  Username: "ubuntu"
   AuthorizedKeys:
   - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/0u1rdJJLt4ycshZg7zsbMbK/nydyn4rYuK7UXTtoH53geMbsxxwGOTZMKaTA4bVgSKBEwybVodfEzEsnsBgigUN/0OXAos6mWosDj8rPNGZ8lr7Sefn5x6ZhESVIuwpDp+bEukCYp6V+FtNiL2U+iWM5eOpl1vvPNMcYXhBdU948RZrubMTa8QlyzSY1Go46gfmVtW+pdXLxGM2sTXlKTA2IxMabmF/BxbVmoQPCNoFObtGxTBNfytbv4yZN73xq52xOvwhiOiLEo3Kj3vbjP49L750oaKKRIP62cd0/dU4y3r8OyJSJehpSYQhwy5slUjIl3KI/QRE8yuTX3+kV"
   - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDW7BP54hSp3TrQjQq7O+oprZdXH8zbKBww/YJyCD9ksM/Y3BiFaCDwzN/vcRSslkn0kJDUq7TxmKp9bEZLTXqAiRe7GflNGoiAUuNY9EWnxt305HIkBs+OEdV6KDtnlm9sRAADflzbDi6YiMjbwNcfoRoxTgpo6BNlzv9Y3prDXiwEjxvosK+4WWIVTTEh33nNvQ5iQhPqBNgURmjQx9EDXFIRdZzA8OykPNLIqFdzmxGZWWxFbW/n6nEl/96b6w7Gx0YgzTSLs+6WAQl8SMP9l22L6puitpjihRw9cWRJ9r6x1eLqgc5Sv7gDKOMXghbmS6hy+AtrxCPPJgq7Mguc5bPAqTZlYMy98dxpHVqtAnBso/9aLOzAXX6At/0QUIwMP693B11NTGniIMtBxnD/yWvGoxTXNmXcTvj13cTzSv9czaGSJ+MTRIugtgyouZADfs8v59NV9KoaEq8umy6WEhmtw5wkjzvC5KK4N2bsM1N+8lSIKxYWxWZFsdYBP8ep442Z/2T5R8y8c5cp7tQqqapDt8JPJ0OPq3sn30BO3X8MgvmoB39j4Cqok1y9VuouPH4RalRLMR7KrASdlFengjt0vWBUoNaEuxRdJR2eOM6SpZh6YGqLdQH1MLaBOzDTH2tTLyTXCOSJpve6ZHOPbjS2BF34a1Kj52NTFtiYTw=="
 Local: true
 ProviderType: "vsphere"
 EngineType: "rke"
+Nodes:
+  controlPlaneNode1: "172.60.5.49"
+  workerNode1: "172.60.5.47"
+  workerNode2: "172.60.5.50"
