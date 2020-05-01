@@ -74,11 +74,6 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	nodeKeys := make([]string, 0)
-	for k := range c.Nodes {
-		nodeKeys = append(nodeKeys, k)
-	}
-
 	nodes := make([]*rkeConfigNode, 0)
 	for k, v := range c.Nodes {
 		node := &rkeConfigNode{
@@ -101,6 +96,11 @@ func (c *MgmtCluster) CreatePermanent() error {
 			node.Role = append(node.Role, "worker")
 		}
 		nodes = append(nodes, node)
+	}
+
+	if len(nodes) == 1 {
+		log.Warnf("Non-HA RKE deployment, at least 3 nodes recommended")
+		nodes[0].Role = []string{"controlplane", "worker", "etcd"}
 	}
 
 	// etcd requires an odd number of nodes, first role on each node is etcd.
