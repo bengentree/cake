@@ -72,9 +72,6 @@ func (c *MgmtCluster) InstallControlPlane() error {
 // CreatePermanent deploys HA RKE cluster to provided nodes
 func (c *MgmtCluster) CreatePermanent() error {
 	c.EventStream <- events.Event{EventType: "progress", Event: "install HA rke cluster"}
-
-	return nil
-
 	var y map[string]interface{}
 	err := yaml.Unmarshal([]byte(rawClusterYML), &y)
 	if err != nil {
@@ -167,7 +164,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 func (c MgmtCluster) PivotControlPlane() error {
 	ctx := context.Background()
 	kubeConfigFile := "kube_config_rke-cluster.yml"
-	namespace := "cattle-system-test-3"
+	namespace := "cattle-system"
 	args := []string{
 		"repo",
 		"add",
@@ -184,21 +181,15 @@ func (c MgmtCluster) PivotControlPlane() error {
 	log.Infof("added rancher-latest helm chart")
 
 	args = []string{
-		"repo",
-		"update",
+		"apply",
+		"-f",
+		"https://github.com/jetstack/cert-manager/releases/download/v0.14.3/cert-manager.crds.yaml",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	err = cmds.GenericExecute(nil, "kubectl", args, &ctx)
 	if err != nil {
 		return err
 	}
-	log.Infof("updated helm chart")
-	//log.Warnf("TODO: Fix this, sleeping 30 seconds to make sure chart is ready")
-	//time.Sleep(30*time.Second)
-	//err = cmd.Wait()
-	//if err != nil {
-	//	return err
-	//}
 
 	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
 	if err != nil {
@@ -212,10 +203,72 @@ func (c MgmtCluster) PivotControlPlane() error {
 
 	_, _ = kube.CoreV1().Namespaces().Create(&v1.Namespace{
 		ObjectMeta: v12.ObjectMeta{
+			Name: "cert-manager",
+		},
+	})
+
+	_, _ = kube.CoreV1().Namespaces().Create(&v1.Namespace{
+		ObjectMeta: v12.ObjectMeta{
 			Name: namespace,
 		},
 	})
 	log.Infof("created %s namespace", namespace)
+
+
+	args = []string{
+		"repo",
+		"add",
+		"jetstack",
+		"https://charts.jetstack.io",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	//cmd := exec.Command("helm", args...)
+	//err := cmd.Start()
+	if err != nil {
+		return nil
+	}
+	args = []string{
+		"repo",
+		"update",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	log.Infof("updated helm chart")
+
+	if err != nil {
+		return err
+	}
+
+	args = []string{
+		"install",
+		"cert-manager",
+		"jetstack/cert-manager",
+		fmt.Sprintf("--namespace=cert-manager"),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	//cmd = exec.Command("helm", args...)
+	//err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	log.Infof("helm installed cert-manager")
+
+	log.Infof("waiting for cert-manager to be ready")
+	args = []string{
+		"rollout",
+		"status",
+		"deploy/cert-manager",
+		fmt.Sprintf("--namespace=cert-manager"),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	cmd := exec.Command("kubectl", args...)
+	err = cmd.Start()
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
 
 	args = []string{
 		"install",
@@ -223,9 +276,11 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"rancher-latest/rancher",
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
-		"--set tls=external",
-		//fmt.Sprintf("--set hostname=%s", c.Hostname),
+		"--set",
+		"tls=external",
 	}
+	//name := fmt.Sprintf("helm install rancher rancher-latest/rancher --namespace=%s --kubeconfig=%s --set tls=external", namespace, kubeConfigFile)
+	//err = cmds.GenericExecute(nil, name, nil, &ctx)
 	err = cmds.GenericExecute(nil, "helm", args, &ctx)
 	//cmd = exec.Command("helm", args...)
 	//err = cmd.Start()
@@ -242,7 +297,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd := exec.Command("kubectl", args...)
+	cmd = exec.Command("kubectl", args...)
 	err = cmd.Start()
 	err = cmd.Wait()
 	if err != nil {
