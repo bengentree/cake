@@ -3,8 +3,13 @@ package rkecli
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/exec"
 	"strings"
@@ -67,6 +72,8 @@ func (c *MgmtCluster) InstallControlPlane() error {
 // CreatePermanent deploys HA RKE cluster to provided nodes
 func (c *MgmtCluster) CreatePermanent() error {
 	c.EventStream <- events.Event{EventType: "progress", Event: "install HA rke cluster"}
+
+	return nil
 
 	var y map[string]interface{}
 	err := yaml.Unmarshal([]byte(rawClusterYML), &y)
@@ -158,18 +165,41 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
+	ctx := context.Background()
+	kubeConfigFile := "kube_config_rke-cluster.yml"
+	namespace := "cattle-system-test-3"
 	args := []string{
 		"repo",
 		"add",
 		"rancher-latest",
 		"https://releases.rancher.com/server-charts/latest",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err := c.osCli.GenericExecute(nil, "helm", args, nil)
+	err := cmds.GenericExecute(nil, "helm", args, &ctx)
+	//cmd := exec.Command("helm", args...)
+	//err := cmd.Start()
 	if err != nil {
 		return err
 	}
+	log.Infof("added rancher-latest helm chart")
 
-	kubeConfigFile := "kube_config_rke-cluster.yml"
+	args = []string{
+		"repo",
+		"update",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	if err != nil {
+		return err
+	}
+	log.Infof("updated helm chart")
+	//log.Warnf("TODO: Fix this, sleeping 30 seconds to make sure chart is ready")
+	//time.Sleep(30*time.Second)
+	//err = cmd.Wait()
+	//if err != nil {
+	//	return err
+	//}
+
 	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
 	if err != nil {
 		return err
@@ -180,30 +210,48 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return err
 	}
 
-	_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
+	_, _ = kube.CoreV1().Namespaces().Create(&v1.Namespace{
 		ObjectMeta: v12.ObjectMeta{
-			Name: "cattle-system",
+			Name: namespace,
 		},
 	})
-	if err != nil {
-		return err
-	}
+	log.Infof("created %s namespace", namespace)
 
 	args = []string{
 		"install",
 		"rancher",
 		"rancher-latest/rancher",
-		"--namespace=cattle-system",
+		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 		"--set tls=external",
 		//fmt.Sprintf("--set hostname=%s", c.Hostname),
 	}
-	err = c.osCli.GenericExecute(nil, "helm", args, nil)
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	//cmd = exec.Command("helm", args...)
+	//err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	log.Infof("helm installed rancher")
+
+	log.Infof("waiting for rancher to be ready")
+	args = []string{
+		"rollout",
+		"status",
+		"deploy/rancher",
+		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	cmd := exec.Command("kubectl", args...)
+	err = cmd.Start()
+	err = cmd.Wait()
 	if err != nil {
 		return err
 	}
 
-	//kube.CoreV1().Pods("").Watch()
+	//deployments := kube.ExtensionsV1beta1().Deployments("cattle-system")
+	//retry.RetryOnConflict()
+
 	return nil
 }
 

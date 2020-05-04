@@ -1,6 +1,5 @@
 package rke
 
-/*
 import (
 	"bytes"
 	"context"
@@ -814,4 +813,4 @@ func waitForRancherAPI() error {
 			}
 		}
 	}
-}*/
+}
