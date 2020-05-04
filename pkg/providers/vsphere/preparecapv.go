@@ -71,7 +71,6 @@ func (v *MgmtBootstrap) prepare(configYAML []byte) error {
 	v.TrackedResources.addTrackedVM(ovas)
 	v.Session.Folder = v.TrackedResources.Folders[bootstrapFolder]
 
-	// TODO put in cloudinit engine specific bootstrap VM prereqs.
 	script := fmt.Sprintf(`#!/bin/bash
 
 # install socat, needed for TCP listeners

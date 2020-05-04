@@ -24,6 +24,12 @@ type TrackedResources struct {
 	VMs     map[string]*object.VirtualMachine
 }
 
+// GeneratedKey is the key pair generated for the run
+type GeneratedKey struct {
+	PrivateKey string
+	PublicKey  string
+}
+
 // MgmtBootstrap spec for CAPV
 type MgmtBootstrap struct {
 	providers.Spec                `yaml:",inline" json:",inline" mapstructure:",squash"`
@@ -44,6 +50,7 @@ type MgmtBootstrapRKE struct {
 	MgmtBootstrap `yaml:",inline" json:",inline" mapstructure:",squash"`
 	BootstrapIP   string            `yaml:"BootstrapIP" json:"bootstrap_ip"`
 	Nodes         map[string]string `yaml:"Nodes" json:"nodes"`
+	GeneratedKey  GeneratedKey      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 // Client setups connection to remote vCenter

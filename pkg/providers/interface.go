@@ -6,8 +6,8 @@ import (
 	"github.com/netapp/cake/pkg/config/types"
 )
 
-// Bootstrap is the interface for creating a bootstrap vm and running cluster provisioning
-type Bootstrap interface {
+// Bootstrapper is the interface for creating infrastructure to run a cake engine against
+type Bootstrapper interface {
 	// Client setups up any client connections to remote providers
 	Client() error
 	// Prepare setups up any needed infrastructure
@@ -32,7 +32,7 @@ type Spec struct {
 }
 
 // Run provider bootstrap process
-func Run(b Bootstrap) error {
+func Run(b Bootstrapper) error {
 	err := b.Client()
 	if err != nil {
 		return err

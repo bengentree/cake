@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/rakyll/statik/fs"
 	log "github.com/sirupsen/logrus"
+
+	// for embedded binary
+	_ "github.com/netapp/cake/pkg/statik"
 	"gopkg.in/yaml.v3"
 )
 
@@ -91,24 +93,14 @@ func (v *MgmtBootstrapRKE) Provision() error {
 func createConnectionToBootstrap(bootstrapVMIP, configYAML string) (tcp, error) {
 	var result tcp
 	var err error
-	var filename string
 
-	if runtime.GOOS == "linux" {
-		filename, err = os.Executable()
-		if err != nil {
-			return result, err
-		}
-	} else {
-		//TODO get cake linux binary embedded in and use that for the transfer for runtime.GOOS != "linux"
-		filename = "bin/cake-linux"
-	}
 	// TODO wait until the uploadPort is listening instead of the 30 sec sleep
 	time.Sleep(30 * time.Second)
 	tcpUpload, err := newTCPConn(bootstrapVMIP + ":" + uploadPort)
 	if err != nil {
 		return result, err
 	}
-	err = tcpUpload.uploadFile(filename)
+	err = tcpUpload.uploadFile(cakeLinuxBinaryPkgerLocation)
 	if err != nil {
 		return result, err
 	}
@@ -150,19 +142,13 @@ func (t *tcp) runSyncCommand(cmd string) string {
 	return result
 }
 
-func fileDoesNotExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return true
-	}
-	return info.IsDir()
-}
-
 func (t *tcp) uploadFile(srcFile string) error {
-	if fileDoesNotExists(srcFile) {
-		return errors.New("file doesnt exist")
+	statikFS, err := fs.New()
+	if err != nil {
+		return err
 	}
-	fi, err := os.Open(srcFile)
+
+	fi, err := statikFS.Open(srcFile)
 	if err != nil {
 		return err
 	}

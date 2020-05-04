@@ -3,6 +3,7 @@ package vsphere
 import (
 	"fmt"
 
+	"github.com/netapp/cake/pkg/utils/ssh"
 	"github.com/vmware/govmomi/object"
 	"gopkg.in/yaml.v3"
 )
@@ -13,17 +14,25 @@ func (v *MgmtBootstrapRKE) Prepare() error {
 	if err != nil {
 		return err
 	}
+	// generate key pair
+	privateKey, publicKey, err := ssh.GenerateRSAKeyPair()
+	if err != nil {
+		return err
+	}
+	v.SSH.AuthorizedKeys = append(v.SSH.AuthorizedKeys, publicKey)
+	v.GeneratedKey.PrivateKey = privateKey
+	v.GeneratedKey.PublicKey = publicKey
 	configYAML, err := yaml.Marshal(v)
 	if err != nil {
 		return err
 	}
 	// TODO make prereqs less hacky than this
 	// v.Prerequisites = rkePrereqs
-	return v.MgmtBootstrap.prepareRKE(configYAML)
+	return v.prepareRKE(configYAML)
 }
 
 // Prepare the environment for bootstrapping
-func (v *MgmtBootstrap) prepareRKE(configYAML []byte) error {
+func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 	mFolder := v.Session.Folder
 	v.Session.Folder = v.TrackedResources.Folders[templatesFolder]
 	ovas, err := v.Session.DeployOVATemplates(v.OVA.BootstrapTemplate, v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
@@ -57,6 +66,9 @@ chmod +x /usr/local/bin/socat
 # engine specific prereqs to run
 %s
 
+# write the generated private key to disk
+%s
+
 `, fmt.Sprintf(
 		uploadFileCmd,
 		uploadPort,
@@ -72,6 +84,7 @@ chmod +x /usr/local/bin/socat
 			commandPort,
 		),
 		v.Prerequisites,
+		fmt.Sprintf(privateKeyToDisk, v.GeneratedKey.PrivateKey),
 	)
 
 	nodes := []cloneSpec{}

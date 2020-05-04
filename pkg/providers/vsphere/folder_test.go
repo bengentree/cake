@@ -45,7 +45,3 @@ func TestCreateFolders(t *testing.T) {
 		})
 	}
 }
-
-func TestDeleteVM(t *testing.T) {
-
-}

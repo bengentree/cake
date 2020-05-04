@@ -23,5 +23,6 @@ Local: true
 ProviderType: "vsphere"
 EngineType: "rke"
 Nodes:
-  controlPlaneNode1: "172.60.5.47"
-Hostname: "rancher.my.org"
+  controlPlaneNode1: "172.60.5.49"
+  workerNode1: "172.60.5.47"
+  workerNode2: "172.60.5.50"
