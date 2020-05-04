@@ -3,8 +3,13 @@ package rkecli
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,6 +20,7 @@ import (
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewMgmtClusterCli creates a new cluster interface with a full config from the client
@@ -158,7 +164,118 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	log.Infof("TODO: helm install rancher server")
+	ctx := context.Background()
+	kubeConfigFile := "kube_config_rke-cluster.yml"
+	namespace := "cattle-system"
+	args := []string{
+		"repo",
+		"add",
+		"rancher-latest",
+		"https://releases.rancher.com/server-charts/latest",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err := cmds.GenericExecute(nil, "helm", args, &ctx)
+	if err != nil {
+		return err
+	}
+	log.Infof("added rancher-latest helm chart")
+
+	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
+	if err != nil {
+		return err
+	}
+
+	kube, err := kubernetes.NewForConfig(kubeCfg)
+	if err != nil {
+		return err
+	}
+
+	_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
+		ObjectMeta: v12.ObjectMeta{
+			Name: namespace,
+		},
+	})
+	if err != nil {
+		log.Warnf("Suppressing error creating %s namespace: %s", namespace, err.Error())
+	}
+	log.Infof("created %s namespace", namespace)
+
+	args = []string{
+		"repo",
+		"update",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	if err != nil {
+		return err
+	}
+	log.Infof("updated helm chart")
+
+	// TODO: install cert-manager
+
+	args = []string{
+		"install",
+		"rancher",
+		"rancher-latest/rancher",
+		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		"--set",
+		"tls=external",
+	}
+	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	if err != nil {
+		return err
+	}
+	log.Infof("helm installed rancher")
+
+	log.Infof("waiting for rancher to be ready")
+	args = []string{
+		"rollout",
+		"status",
+		"deploy/rancher",
+		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	cmd := exec.Command("kubectl", args...)
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	npSvcName := "np443"
+	log.Infof("TODO: Configure LB, for now expose rancher via NodePort")
+	args = []string{
+		"expose",
+		"deployment",
+		"rancher",
+		fmt.Sprintf("--name=%s", npSvcName),
+		"--port=443",
+		"--target-port=443",
+		"--type=NodePort",
+		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmds.GenericExecute(nil, "kubectl", args, &ctx)
+	if err != nil {
+		return err
+	}
+
+	npSvc, err := kube.CoreV1().Services(namespace).Get(npSvcName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	var randomNode string
+	for _, n := range c.Nodes {
+		randomNode = n
+	}
+	rServerURL := fmt.Sprintf("https://%s:%d", randomNode, npSvc.Spec.Ports[0].NodePort)
+
+	log.Infof("HA rancher install complete: %s", rServerURL)
 	return nil
 }
 

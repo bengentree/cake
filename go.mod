@@ -24,12 +24,12 @@ require (
 	github.com/spf13/viper v1.6.3
 	github.com/vmware/govmomi v0.22.2
 	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/tools v0.0.0-20200501155019-2658dc0cadb5 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20200121175148-a6ecf24a6d71
 	k8s.io/api v0.18.0
+	k8s.io/apimachinery v0.17.2
+	k8s.io/client-go v11.0.1-0.20190805182715-88a2adca7e76+incompatible
 	sigs.k8s.io/cluster-api v0.3.3
 	sigs.k8s.io/cluster-api-provider-vsphere v0.6.3
 )

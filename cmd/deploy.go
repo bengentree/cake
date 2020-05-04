@@ -3,8 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/netapp/cake/pkg/engines/rke"
-	rke_cli "github.com/netapp/cake/pkg/engines/rke-cli"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,6 +13,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/netapp/cake/pkg/config/events"
+	"github.com/netapp/cake/pkg/engines/rke"
+	rkecli "github.com/netapp/cake/pkg/engines/rke-cli"
 	"github.com/netapp/cake/pkg/providers"
 	"github.com/netapp/cake/pkg/providers/vsphere"
 
@@ -185,7 +185,7 @@ func runEngine() {
 
 	} else if deploymentType == "rke" {
 		// CAKE_RKE_DOCKER will deploy RKE from a docker container,
-		// else RKE will be deployed using rke cli1
+		// else RKE will be deployed using rke cli (default)
 		rkeDockerEnv := os.Getenv("CAKE_RKE_DOCKER")
 		if rkeDockerEnv != "" {
 			engine := rke.NewMgmtClusterFullConfig()
@@ -200,7 +200,7 @@ func runEngine() {
 			engine.EventStream = make(chan events.Event)
 			engineName = engine
 		} else {
-			engine := rke_cli.NewMgmtClusterCli()
+			engine := rkecli.NewMgmtClusterCli()
 			errJ := viper.Unmarshal(&engine)
 			if errJ != nil {
 				log.Fatalf("unable to decode into struct, %v", errJ.Error())
