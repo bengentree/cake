@@ -4,12 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,7 +15,11 @@ import (
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // NewMgmtClusterCli creates a new cluster interface with a full config from the client
@@ -164,7 +163,6 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	ctx := context.Background()
 	kubeConfigFile := "kube_config_rke-cluster.yml"
 	namespace := "cattle-system"
 	args := []string{
@@ -174,7 +172,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"https://releases.rancher.com/server-charts/latest",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err := cmds.GenericExecute(nil, "helm", args, &ctx)
+	err := exec.Command("helm", args...).Start()
 	if err != nil {
 		return err
 	}
@@ -191,7 +189,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 
 	_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
-		ObjectMeta: v12.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	})
@@ -205,7 +203,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"update",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	err = exec.Command("helm", args...).Start()
 	if err != nil {
 		return err
 	}
@@ -222,7 +220,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"--set",
 		"tls=external",
 	}
-	err = cmds.GenericExecute(nil, "helm", args, &ctx)
+	cmd := exec.Command("helm", args...)
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
 	if err != nil {
 		return err
 	}
@@ -236,7 +239,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd := exec.Command("kubectl", args...)
+	cmd = exec.Command("kubectl", args...)
 	err = cmd.Start()
 	if err != nil {
 		return err
@@ -259,7 +262,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err = cmds.GenericExecute(nil, "kubectl", args, &ctx)
+	err = exec.Command("kubectl", args...).Start()
 	if err != nil {
 		return err
 	}
