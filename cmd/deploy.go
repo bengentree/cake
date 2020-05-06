@@ -12,15 +12,15 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/netapp/cake/pkg/config/events"
-	"github.com/netapp/cake/pkg/engines/rke"
-	rkecli "github.com/netapp/cake/pkg/engines/rke-cli"
-	"github.com/netapp/cake/pkg/providers"
-	"github.com/netapp/cake/pkg/providers/vsphere"
+	"github.com/netapp/cake/pkg/engine/rke"
+	"github.com/netapp/cake/pkg/engine/rkecli"
+	"github.com/netapp/cake/pkg/progress"
+	"github.com/netapp/cake/pkg/provider"
+	"github.com/netapp/cake/pkg/provider/vsphere"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/netapp/cake/pkg/engines"
-	"github.com/netapp/cake/pkg/engines/capv"
+	"github.com/netapp/cake/pkg/engine"
+	"github.com/netapp/cake/pkg/engine/capv"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -51,9 +51,9 @@ var deployCmd = &cobra.Command{
 	},
 }
 
-var responseBody *progress
+var responseBody *status
 
-type progress struct {
+type status struct {
 	Complete bool     `json:"complete"`
 	Messages []string `json:"messages"`
 }
@@ -68,7 +68,7 @@ func init() {
 		return nil
 	}
 
-	responseBody = new(progress)
+	responseBody = new(status)
 	responseBody.Messages = []string{}
 }
 
@@ -76,7 +76,7 @@ func logInit() {
 	log.SetOutput(os.Stdout)
 }
 
-func getResponseData() progress {
+func getResponseData() status {
 	return *responseBody
 }
 
@@ -102,7 +102,7 @@ func runProvider() {
 	var clusterName string
 	var controlPlaneCount int
 	var workerCount int
-	var bootstrap providers.Bootstrapper
+	var bootstrap provider.Bootstrapper
 	if deploymentType == "capv" {
 		vsProvider := new(vsphere.MgmtBootstrapCAPV)
 		errJ := viper.Unmarshal(&vsProvider)
@@ -112,7 +112,7 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
-		vsProvider.EventStream = make(chan events.Event)
+		vsProvider.EventStream = make(chan progress.Event)
 		bootstrap = vsProvider
 	} else if deploymentType == "rke" {
 		vsProvider := new(vsphere.MgmtBootstrapRKE)
@@ -123,7 +123,7 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
-		vsProvider.EventStream = make(chan events.Event)
+		vsProvider.EventStream = make(chan progress.Event)
 		bootstrap = vsProvider
 	}
 
@@ -134,26 +134,26 @@ func runProvider() {
 		"ControlPlaneMachineCount": controlPlaneCount,
 		"workerMachineCount":       workerCount,
 	}).Info("Let's launch a cluster")
-	progress := bootstrap.Events()
+	cakeProgress := bootstrap.Events()
 	go func() {
 		for {
 			select {
-			case event := <-progress:
-				switch event.EventType {
+			case evnt := <-cakeProgress:
+				switch evnt.Type {
 				case "checkpoint":
 					// update rest api
 				default:
-					e := event
+					e := evnt
 					log.WithFields(log.Fields{
-						"eventType": e.EventType,
-						"event":     e.Event,
-					}).Info("event received")
+						"eventType": e.Type,
+						"progress":     e.Msg,
+					}).Info("progress received")
 				}
 			}
 		}
 	}()
 
-	err := providers.Run(bootstrap)
+	err := provider.Run(bootstrap)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -168,7 +168,7 @@ func runEngine() {
 	var controlPlaneCount int
 	var workerCount int
 	var logFile string
-	var engineName engines.Cluster
+	var engineName engine.Cluster
 
 	if deploymentType == "capv" {
 		engine := capv.MgmtCluster{}
@@ -180,7 +180,7 @@ func runEngine() {
 		controlPlaneCount = engine.ControlPlaneCount
 		workerCount = engine.WorkerCount
 		logFile = engine.LogFile
-		engine.EventStream = make(chan events.Event)
+		engine.EventStream = make(chan progress.Event)
 		engineName = engine
 
 	} else if deploymentType == "rke" {
@@ -197,7 +197,7 @@ func runEngine() {
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
 			logFile = engine.LogFile
-			engine.EventStream = make(chan events.Event)
+			engine.EventStream = make(chan progress.Event)
 			engineName = engine
 		} else {
 			engine := rkecli.NewMgmtClusterCli()
@@ -209,7 +209,7 @@ func runEngine() {
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
 			logFile = engine.LogFile
-			engine.EventStream = make(chan events.Event)
+			engine.EventStream = make(chan progress.Event)
 			engineName = engine
 		}
 	} else {
@@ -245,22 +245,22 @@ func runEngine() {
 	go func() {
 		for {
 			select {
-			case event := <-progress:
-				switch event.EventType {
+			case evnt := <-progress:
+				switch evnt.Type {
 				case "checkpoint":
 					// update rest api
 				default:
-					e := event
+					e := evnt
 					log.WithFields(log.Fields{
-						"eventType": e.EventType,
-						"event":     e.Event,
-					}).Info("event received")
+						"eventType": e.Type,
+						"progress":     e.Msg,
+					}).Info("progress received")
 				}
 			}
 		}
 	}()
 
-	err = engines.Run(engineName)
+	err = engine.Run(engineName)
 	if err != nil {
 		log.Error(err.Error())
 	}

@@ -51,15 +51,15 @@ build: ## Compile the cake binary and nothing else
 
 .PHONY: embedded
 embedded: ## Compile the linux cake binary for embedding
-	@echo "$$STATIK_FILE" > pkg/statik/statik.go
+	@echo "$$STATIK_FILE" > pkg/util/statik/statik.go
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags '-s -w -extldflags "-static"' -o bin/cake-linux-embedded main.go
 	hack/upx-${OSFLAG} bin/cake-linux-embedded
 	go get github.com/rakyll/statik
-	${GOPATH}/bin/statik -f -src=./bin -dest=pkg -include=cake-linux-embedded
+	${GOPATH}/bin/statik -f -src=./bin -dest=pkg/util -include=cake-linux-embedded
 
 .PHONY: test
 test: ## Test with go test
-	@echo "$$STATIK_FILE" > pkg/statik/statik.go
+	@echo "$$STATIK_FILE" > pkg/util/statik/statik.go
 	go test -v -covermode=count ./...
 
 .PHONY: clean

@@ -1,9 +1,9 @@
 package types
 
-// ProviderType for available providers
+// ProviderType for available provider
 type ProviderType string
 
-// EngineType for available engines
+// EngineType for available engine
 type EngineType string
 
 // ConfigSpec holds information needed to register HCI with NKS
