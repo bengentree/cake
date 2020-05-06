@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -39,7 +40,7 @@ type MgmtCluster struct {
 	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
 	token                   string
 	clusterURL              string
-	BootstrapIP             string            `yaml:"BootstrapIP"`
+	RKEConfigPath           string            `yaml:"RKEConfigPath"`
 	Nodes                   map[string]string `yaml:"Nodes" json:"nodes"`
 	Hostname                string            `yaml:"Hostname"`
 }
@@ -120,8 +121,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	if err != nil {
 		return err
 	}
-	yamlFile := "rke-cluster.yml"
-	err = ioutil.WriteFile(yamlFile, clusterYML, 0644)
+	err = ioutil.WriteFile(c.RKEConfigPath, clusterYML, 0644)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	cmds.FileLogLocation = c.LogFile
 	args := []string{
 		"up",
-		"--config=/" + yamlFile,
+		"--config=" + c.RKEConfigPath,
 	}
 	err = cmds.GenericExecute(nil, "rke", args, nil)
 	if err != nil {
@@ -141,7 +141,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	kubeConfigFile := "kube_config_rke-cluster.yml"
+	kubeConfigFile := fmt.Sprintf("kube_config_%s", filepath.Base(c.RKEConfigPath))
 	namespace := "cattle-system"
 	rVersion := "rancher-stable"
 	args := []string{
