@@ -1,11 +1,14 @@
 package rkecli
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -87,7 +90,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 			HostnameOverride: "",
 			User:             c.SSH.Username,
 			DockerSocket:     "/var/run/docker.sock",
-			SSHKeyPath:       "/root/.ssh/id_rsa",
+			SSHKeyPath:       "~/.ssh/id_rsa",
 			SSHCert:          "",
 			SSHCertPath:      "",
 			Labels:           make(map[string]string),
@@ -124,16 +127,38 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	cmds.FileLogLocation = c.LogFile
-	args := []string{
-		"up",
-		"--config=/" + yamlFile,
-	}
-	err = cmds.GenericExecute(nil, "rke", args, nil)
+	// https://gist.github.com/hivefans/ffeaf3964924c943dd7ed83b406bbdea
+	cmd := exec.Command("rke", "up", "--config", yamlFile)
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	r := bufio.NewReader(stdout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				line, _, _ := r.ReadLine()
+				lineStr := string(line)
+				log.Infoln(lineStr)
+				if strings.Contains(lineStr, "FATA") ||
+					strings.Contains(lineStr, "Finished") {
+					return
+				}
+			}
+		}
+	}(ctx)
 
+	err = cmd.Wait()
+	ctx.Done()
 	return err
 }
 
@@ -144,8 +169,8 @@ func (c MgmtCluster) PivotControlPlane() error {
 	args := []string{
 		"repo",
 		"add",
-		"rancher-latest",
-		"https://releases.rancher.com/server-charts/latest",
+		"rancher-stable",
+		"https://releases.rancher.com/server-charts/stable",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
 	err := exec.Command("helm", args...).Start()
@@ -153,6 +178,19 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return err
 	}
 	log.Infof("added rancher-latest helm chart")
+
+	args = []string{
+		"repo",
+		"add",
+		"jetstack",
+		"https://charts.jetstack.io",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = exec.Command("helm", args...).Start()
+	if err != nil {
+		return nil
+	}
+	log.Infof("added cert-manager helm chart")
 
 	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
 	if err != nil {
@@ -172,7 +210,34 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		log.Warnf("Suppressing error creating %s namespace: %s", namespace, err.Error())
 	}
-	log.Infof("created %s namespace", namespace)
+
+	_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cert-manager",
+		},
+	})
+	if err != nil {
+		log.Warnf("Suppressing error creating cert-manager namespace: %s", err.Error())
+	}
+
+	log.Infof("created namespaces")
+
+	args = []string{
+		"apply",
+		"-f",
+		"https://github.com/jetstack/cert-manager/releases/download/v0.14.3/cert-manager.crds.yaml",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	cmd := exec.Command("kubectl", args...)
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+	log.Infof("installed cert-manager CRD")
 
 	args = []string{
 		"repo",
@@ -185,18 +250,14 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	log.Infof("updated helm chart")
 
-	// TODO: install cert-manager
-
 	args = []string{
 		"install",
-		"rancher",
-		"rancher-latest/rancher",
-		fmt.Sprintf("--namespace=%s", namespace),
+		"cert-manager",
+		"jetstack/cert-manager",
+		fmt.Sprintf("--namespace=cert-manager"),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
-		"--set",
-		"tls=external",
 	}
-	cmd := exec.Command("helm", args...)
+	cmd = exec.Command("helm", args...)
 	err = cmd.Start()
 	if err != nil {
 		return err
@@ -205,7 +266,48 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("helm installed rancher")
+	log.Infof("helm installed cert-manager")
+
+	log.Infof("waiting for cert-manager to be ready")
+	args = []string{
+		"rollout",
+		"status",
+		"deploy/cert-manager",
+		"--namespace=cert-manager",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	cmd = exec.Command("kubectl", args...)
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(30 * time.Second)
+	log.Infof("helm installing rancher")
+	escapedHostname := strings.Replace(c.Hostname, ".", "\\.", 0)
+	args = []string{
+		"install",
+		"rancher",
+		"rancher-stable/rancher",
+		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		"--set",
+		fmt.Sprintf("hostname=%s", escapedHostname),
+	}
+	log.Infof("helm %s", strings.Join(args, " "))
+	cmd = exec.Command("helm", args...)
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
 
 	log.Infof("waiting for rancher to be ready")
 	args = []string{
@@ -225,35 +327,35 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return err
 	}
 
-	npSvcName := "np443"
-	log.Infof("TODO: Configure LB, for now expose rancher via NodePort")
+	log.Infof("waiting for nginx ingress to be ready")
 	args = []string{
-		"expose",
-		"deployment",
-		"rancher",
-		fmt.Sprintf("--name=%s", npSvcName),
-		"--port=443",
-		"--target-port=443",
-		"--type=NodePort",
-		fmt.Sprintf("--namespace=%s", namespace),
+		"rollout",
+		"status",
+		"deploy/default-http-backend",
+		"--namespace=ingress-nginx",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err = exec.Command("kubectl", args...).Start()
+	cmd = exec.Command("kubectl", args...)
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
 	if err != nil {
 		return err
 	}
 
-	npSvc, err := kube.CoreV1().Services(namespace).Get(npSvcName, metav1.GetOptions{})
-	if err != nil {
-		return err
+	var workerNode string
+	for k, v := range c.Nodes {
+		if strings.HasPrefix(k, "worker") {
+			workerNode = v
+			break
+		}
 	}
 
-	var randomNode string
-	for _, n := range c.Nodes {
-		randomNode = n
-	}
-	rServerURL := fmt.Sprintf("https://%s:%d", randomNode, npSvc.Spec.Ports[0].NodePort)
+	rServerURL := fmt.Sprintf("https://%s", c.Hostname)
 
+	log.Infof("Make sure hostname %s resolves to %s or a worker node IP", c.Hostname, workerNode)
 	log.Infof("HA rancher install complete: %s", rServerURL)
 	return nil
 }
