@@ -16,6 +16,7 @@ type K8sConfig struct {
 type SSH struct {
 	Username       string   `yaml:"Username" json:"username"`
 	AuthorizedKeys []string `yaml:"AuthorizedKeys" json:"authorizedkeys"`
+	KeyPath        string   `yaml:"KeyPath,omitempty" json:"keyPath,omitempty"`
 }
 
 // Addons holds optional configuration values

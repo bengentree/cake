@@ -1,8 +1,6 @@
 package rkecli
 
 import (
-	"bufio"
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -90,7 +88,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 			HostnameOverride: "",
 			User:             c.SSH.Username,
 			DockerSocket:     "/var/run/docker.sock",
-			SSHKeyPath:       "~/.ssh/id_rsa",
+			SSHKeyPath:       c.SSH.KeyPath,
 			SSHCert:          "",
 			SSHCertPath:      "",
 			Labels:           make(map[string]string),
@@ -116,6 +114,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	}
 
 	y["nodes"] = nodes
+	y["ssh_key_path"] = c.SSH.KeyPath
 
 	clusterYML, err := yaml.Marshal(y)
 	if err != nil {
@@ -127,49 +126,28 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	// https://gist.github.com/hivefans/ffeaf3964924c943dd7ed83b406bbdea
-	cmd := exec.Command("rke", "up", "--config", yamlFile)
-	stdout, err := cmd.StdoutPipe()
+	cmds.FileLogLocation = c.LogFile
+	args := []string{
+		"up",
+		"--config=/" + yamlFile,
+	}
+	err = cmds.GenericExecute(nil, "rke", args, nil)
 	if err != nil {
 		return err
 	}
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-	r := bufio.NewReader(stdout)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
-	defer cancel()
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				line, _, _ := r.ReadLine()
-				lineStr := string(line)
-				log.Infoln(lineStr)
-				if strings.Contains(lineStr, "FATA") ||
-					strings.Contains(lineStr, "Finished") {
-					return
-				}
-			}
-		}
-	}(ctx)
 
-	err = cmd.Wait()
-	ctx.Done()
-	return err
+	return nil
 }
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
 	kubeConfigFile := "kube_config_rke-cluster.yml"
 	namespace := "cattle-system"
+	rVersion := "rancher-stable"
 	args := []string{
 		"repo",
 		"add",
-		"rancher-stable",
+		rVersion,
 		"https://releases.rancher.com/server-charts/stable",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
@@ -177,7 +155,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("added rancher-latest helm chart")
+	log.Infof("added %s helm chart", rVersion)
 
 	args = []string{
 		"repo",
@@ -292,7 +270,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	args = []string{
 		"install",
 		"rancher",
-		"rancher-stable/rancher",
+		fmt.Sprintf("%s/rancher", rVersion),
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 		"--set",
