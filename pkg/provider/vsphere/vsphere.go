@@ -49,8 +49,10 @@ type MgmtBootstrapCAPV struct {
 // MgmtBootstrapRKE is the spec for bootstrapping a RKE management cluster
 type MgmtBootstrapRKE struct {
 	MgmtBootstrap `yaml:",inline" json:",inline" mapstructure:",squash"`
-	BootstrapIP   string            `yaml:"BootstrapIP" json:"bootstrap_ip"`
+	BootstrapIP   string            `yaml:"BootstrapIP" json:"bootstrapIP"`
 	Nodes         map[string]string `yaml:"Nodes" json:"nodes"`
+	RKEConfigPath string            `yaml:"RKEConfigPath"`
+	Hostname  	  string	        `yaml:"Hostname" json:"hostname" mapstructure:"-"`
 	GeneratedKey  GeneratedKey      `yaml:"-" json:"-" mapstructure:"-"`
 }
 

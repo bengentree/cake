@@ -73,6 +73,13 @@ func (c *MgmtCluster) InstallControlPlane() error {
 func (c *MgmtCluster) CreatePermanent() error {
 	c.EventStream <- progress.Event{Type: "progress", Msg: "install HA rke cluster"}
 
+	if c.RKEConfigPath == "" {
+		c.RKEConfigPath = "/rke-config.yml"
+	}
+	if c.Hostname == "" {
+		c.Hostname = "my.rancher.org"
+	}
+
 	var y map[string]interface{}
 	err := yaml.Unmarshal([]byte(rawClusterYML), &y)
 	if err != nil {
@@ -141,7 +148,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	kubeConfigFile := fmt.Sprintf("kube_config_%s", filepath.Base(c.RKEConfigPath))
+	kubeConfigFile := filepath.Join(filepath.Dir(c.RKEConfigPath), fmt.Sprintf("kube_config_%s", filepath.Base(c.RKEConfigPath)))
 	namespace := "cattle-system"
 	rVersion := "rancher-stable"
 	args := []string{
