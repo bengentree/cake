@@ -159,11 +159,20 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"https://releases.rancher.com/server-charts/stable",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err := exec.Command("helm", args...).Start()
+	err := cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
 		return err
 	}
 	log.Infof("added %s helm chart", rVersion)
+	args = []string{
+		"repo",
+		"list",
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	}
+	err = cmd.GenericExecute(nil, "helm", args, nil)
+	if err != nil {
+		return err
+	}
 
 	args = []string{
 		"repo",
@@ -214,12 +223,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"https://raw.githubusercontent.com/jetstack/cert-manager/release-0.12/deploy/manifests/00-crds.yaml",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd := exec.Command("kubectl", args...)
-	err = cmd.Start()
+	cmd2 := exec.Command("kubectl", args...)
+	err = cmd2.Start()
 	if err != nil {
 		return err
 	}
-	err = cmd.Wait()
+	err = cmd2.Wait()
 	if err != nil {
 		return err
 	}
@@ -244,12 +253,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"--version=v0.12.0",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd = exec.Command("helm", args...)
-	err = cmd.Start()
+	cmd2 = exec.Command("helm", args...)
+	err = cmd2.Start()
 	if err != nil {
 		return err
 	}
-	err = cmd.Wait()
+	err = cmd2.Wait()
 	if err != nil {
 		return err
 	}
@@ -263,12 +272,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"--namespace=cert-manager",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd = exec.Command("kubectl", args...)
-	err = cmd.Start()
+	cmd2 = exec.Command("kubectl", args...)
+	err = cmd2.Start()
 	if err != nil {
 		return err
 	}
-	err = cmd.Wait()
+	err = cmd2.Wait()
 	if err != nil {
 		return err
 	}
@@ -286,12 +295,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("hostname=%s", escapedHostname),
 	}
 	log.Infof("helm %s", strings.Join(args, " "))
-	cmd = exec.Command("helm", args...)
-	err = cmd.Start()
+	cmd2 = exec.Command("helm", args...)
+	err = cmd2.Start()
 	if err != nil {
 		return fmt.Errorf("error starting rancher helm install: %s", err)
 	}
-	err = cmd.Wait()
+	err = cmd2.Wait()
 	if err != nil {
 		return fmt.Errorf("error waiting for rancher helm install: %s", err)
 	}
@@ -304,12 +313,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd = exec.Command("kubectl", args...)
-	err = cmd.Start()
+	cmd2 = exec.Command("kubectl", args...)
+	err = cmd2.Start()
 	if err != nil {
 		return err
 	}
-	err = cmd.Wait()
+	err = cmd2.Wait()
 	if err != nil {
 		return err
 	}
@@ -322,12 +331,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"--namespace=ingress-nginx",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd = exec.Command("kubectl", args...)
-	err = cmd.Start()
+	cmd2 = exec.Command("kubectl", args...)
+	err = cmd2.Start()
 	if err != nil {
 		return err
 	}
-	err = cmd.Wait()
+	err = cmd2.Wait()
 	if err != nil {
 		return err
 	}

@@ -52,7 +52,7 @@ type MgmtBootstrapRKE struct {
 	BootstrapIP   string            `yaml:"BootstrapIP" json:"bootstrapIP"`
 	Nodes         map[string]string `yaml:"Nodes" json:"nodes"`
 	RKEConfigPath string            `yaml:"RKEConfigPath"`
-	Hostname      string            `yaml:"Hostname" json:"hostname" mapstructure:"-"`
+	Hostname      string            `yaml:"Hostname" json:"hostname"`
 	GeneratedKey  GeneratedKey      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
