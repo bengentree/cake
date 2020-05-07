@@ -52,5 +52,9 @@ do
 done
 
 echo "net.bridge.bridge-nf-call-iptables=1" >> /etc/sysctl.conf
-usermod -aG docker %s`
+usermod -aG docker %s
+
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh`
 )

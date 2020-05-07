@@ -2,14 +2,13 @@ package rkecli
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engine"
@@ -74,9 +73,11 @@ func (c *MgmtCluster) CreatePermanent() error {
 	c.EventStream <- progress.Event{Type: "progress", Msg: "install HA rke cluster"}
 
 	if c.RKEConfigPath == "" {
+		log.Warnf("RKEConfigPath not provided in cake config, defaulting to /rke-config.yml")
 		c.RKEConfigPath = "/rke-config.yml"
 	}
 	if c.Hostname == "" {
+		log.Warnf("Hostname not provided in cake config, defaulting to my.rancher.org")
 		c.Hostname = "my.rancher.org"
 	}
 
@@ -210,7 +211,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	args = []string{
 		"apply",
 		"-f",
-		"https://github.com/jetstack/cert-manager/releases/download/v0.14.3/cert-manager.crds.yaml",
+		"https://raw.githubusercontent.com/jetstack/cert-manager/release-0.12/deploy/manifests/00-crds.yaml",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
 	cmd := exec.Command("kubectl", args...)
@@ -240,6 +241,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"cert-manager",
 		"jetstack/cert-manager",
 		fmt.Sprintf("--namespace=cert-manager"),
+		"--version=v0.12.0",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
 	cmd = exec.Command("helm", args...)
@@ -287,11 +289,11 @@ func (c MgmtCluster) PivotControlPlane() error {
 	cmd = exec.Command("helm", args...)
 	err = cmd.Start()
 	if err != nil {
-		return err
+		return fmt.Errorf("error starting rancher helm install: %s", err)
 	}
 	err = cmd.Wait()
 	if err != nil {
-		return err
+		return fmt.Errorf("error waiting for rancher helm install: %s", err)
 	}
 
 	log.Infof("waiting for rancher to be ready")
