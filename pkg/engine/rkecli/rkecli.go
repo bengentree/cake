@@ -2,23 +2,20 @@ package rkecli
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"time"
-
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engine"
 	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/util/cmd"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -91,8 +88,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	var y map[string]interface{}
 	err := yaml.Unmarshal([]byte(rawClusterYML), &y)
 	if err != nil {
-		log.Errorf("failed to unmarshall rawClusterYML: %v", err)
-		return err
+		return fmt.Errorf("error unmarshaling RKE cluster config file: %s", err)
 	}
 
 	nodes := make([]*rkeConfigNode, 0)
@@ -135,13 +131,11 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 	clusterYML, err := yaml.Marshal(y)
 	if err != nil {
-		log.Errorf("failed to marshal node/key_path info to yaml: %v", err)
-		return err
+		return fmt.Errorf("error marshaling RKE cluster config file: %s", err)
 	}
 	err = ioutil.WriteFile(c.RKEConfigPath, clusterYML, 0644)
 	if err != nil {
-		log.Errorf("failed to write RKE Config(%s): %v", c.RKEConfigPath, err)
-		return err
+		return fmt.Errorf("error writing RKE cluster config file to file %s: %s", c.RKEConfigPath, err)
 	}
 
 	cmd.FileLogLocation = c.LogFile
@@ -151,8 +145,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	}
 	err = cmd.GenericExecute(nil, "rke", args, nil)
 	if err != nil {
-		log.Errorf("failed to execute rke command: %v", err)
-		return err
+		return fmt.Errorf("error running rke up cmd: %s", err)
 	}
 
 	return nil
@@ -172,7 +165,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	err := cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error adding rancher helm chart: %s", err)
 	}
 	log.Infof("added %s helm chart", rVersion)
 	args = []string{
@@ -182,7 +175,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading helm chart: %s", err)
 	}
 
 	args = []string{
@@ -192,9 +185,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"https://charts.jetstack.io",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err = exec.Command("helm", args...).Start()
+	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
-		return nil
+		return fmt.Errorf("error adding jetstack helm chart: %s", err)
 	}
 	log.Infof("added cert-manager helm chart")
 
@@ -234,14 +227,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		certManagerCRDURL,
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd2 := exec.Command("kubectl", args...)
-	err = cmd2.Start()
+	err = cmd.GenericExecute(nil, "kubectl", args, nil)
 	if err != nil {
-		return err
-	}
-	err = cmd2.Wait()
-	if err != nil {
-		return err
+		return fmt.Errorf("error installing cert-manager CRD: %s", err)
 	}
 	log.Infof("installed cert-manager CRD")
 
@@ -250,9 +238,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"update",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	err = exec.Command("helm", args...).Start()
+	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating helm charts: %s", err)
 	}
 	log.Infof("updated helm chart")
 
@@ -264,14 +252,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--version=%s", certManagerVersion),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd2 = exec.Command("helm", args...)
-	err = cmd2.Start()
+	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
-		return err
-	}
-	err = cmd2.Wait()
-	if err != nil {
-		return err
+		return fmt.Errorf("error installing cert-manager helm chart: %s", err)
 	}
 	log.Infof("helm installed cert-manager")
 
@@ -283,19 +266,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"--namespace=cert-manager",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd2 = exec.Command("kubectl", args...)
-	err = cmd2.Start()
+	err = cmd.GenericExecute(nil, "kubectl", args, nil)
 	if err != nil {
-		return err
-	}
-	err = cmd2.Wait()
-	if err != nil {
-		return err
+		return fmt.Errorf("error waiting for cert-manager: %s", err)
 	}
 
-	time.Sleep(30 * time.Second)
 	log.Infof("helm installing rancher")
-	escapedHostname := strings.Replace(c.Hostname, ".", "\\.", 0)
 	args = []string{
 		"install",
 		"rancher",
@@ -303,17 +279,11 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 		"--set",
-		fmt.Sprintf("hostname=%s", escapedHostname),
+		fmt.Sprintf("hostname=%s", c.Hostname),
 	}
-	log.Infof("helm %s", strings.Join(args, " "))
-	cmd2 = exec.Command("helm", args...)
-	err = cmd2.Start()
+	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
-		return fmt.Errorf("error starting rancher helm install: %s", err)
-	}
-	err = cmd2.Wait()
-	if err != nil {
-		return fmt.Errorf("error waiting for rancher helm install: %s", err)
+		log.Warnf("suppressing error running rancher helm install: %s", err)
 	}
 
 	log.Infof("waiting for rancher to be ready")
@@ -324,14 +294,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd2 = exec.Command("kubectl", args...)
-	err = cmd2.Start()
+	err = cmd.GenericExecute(nil, "kubectl", args, nil)
 	if err != nil {
-		return err
-	}
-	err = cmd2.Wait()
-	if err != nil {
-		return err
+		return fmt.Errorf("error waiting for rancher: %s", err)
 	}
 
 	log.Infof("waiting for nginx ingress to be ready")
@@ -342,14 +307,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"--namespace=ingress-nginx",
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
-	cmd2 = exec.Command("kubectl", args...)
-	err = cmd2.Start()
+	err = cmd.GenericExecute(nil, "kubectl", args, nil)
 	if err != nil {
-		return err
-	}
-	err = cmd2.Wait()
-	if err != nil {
-		return err
+		return fmt.Errorf("error waiting for nginx ingress: %s", err)
 	}
 
 	var workerNode string
