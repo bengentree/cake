@@ -46,7 +46,11 @@ func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 	baseNodeScript := newNodeBaseScript(v.Prerequisites, string(v.EngineType)).ToString()
 	bootstrapperScript := newNodeBaseScript(v.Prerequisites, string(v.EngineType))
 	bootstrapperScript.MakeNodeBootstrapper()
-	bootstrapperScript.AddLines(rkeBinaryInstall,fmt.Sprintf(privateKeyToDisk, v.GeneratedKey.PrivateKey))
+	bootstrapperScript.AddLines(
+		fmt.Sprintf(helmInstall, helmVersion),
+		rkeBinaryInstall,
+		fmt.Sprintf(privateKeyToDisk, v.GeneratedKey.PrivateKey),
+	)
 
 	nodes := []cloneSpec{}
 	bootstrapNode := cloneSpec{

@@ -21,6 +21,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const (
+	defaultConfigPath  = "/rke-config.yml"
+	defaultHostname    = "my.rancher.org"
+	certManagerCRDURL  = "https://raw.githubusercontent.com/jetstack/cert-manager/release-0.12/deploy/manifests/00-crds.yaml"
+	certManagerVersion = "v0.12.0"
+)
+
 // NewMgmtClusterCli creates a new cluster interface with a full config from the client
 func NewMgmtClusterCli() *MgmtCluster {
 	mc := &MgmtCluster{}
@@ -73,12 +80,12 @@ func (c *MgmtCluster) CreatePermanent() error {
 	c.EventStream <- progress.Event{Type: "progress", Msg: "install HA rke cluster"}
 
 	if c.RKEConfigPath == "" {
-		log.Warnf("RKEConfigPath not provided in cake config, defaulting to /rke-config.yml")
-		c.RKEConfigPath = "/rke-config.yml"
+		log.Warnf("RKEConfigPath not provided in cake config, defaulting to %s", defaultConfigPath)
+		c.RKEConfigPath = defaultConfigPath
 	}
 	if c.Hostname == "" {
-		log.Warnf("Hostname not provided in cake config, defaulting to my.rancher.org")
-		c.Hostname = "my.rancher.org"
+		log.Warnf("Hostname not provided in cake config, defaulting to %s", defaultHostname)
+		c.Hostname = defaultHostname
 	}
 
 	var y map[string]interface{}
@@ -220,7 +227,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	args = []string{
 		"apply",
 		"-f",
-		"https://raw.githubusercontent.com/jetstack/cert-manager/release-0.12/deploy/manifests/00-crds.yaml",
+		certManagerCRDURL,
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
 	cmd2 := exec.Command("kubectl", args...)
@@ -250,7 +257,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"cert-manager",
 		"jetstack/cert-manager",
 		fmt.Sprintf("--namespace=cert-manager"),
-		"--version=v0.12.0",
+		fmt.Sprintf("--version=%s", certManagerVersion),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 	}
 	cmd2 = exec.Command("helm", args...)

@@ -13,6 +13,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const defaultVMMemoryInMB int64 = 8 * 1024 // = 8192 or 8 GB in MB
+
 type cloneSpec struct {
 	template   *object.VirtualMachine
 	name       string
@@ -77,7 +79,7 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 		spec.Config.NumCPUs = int32
 		spec.Config.MemoryMB = int64
 	*/
-	spec.Config.MemoryMB = 8192
+	spec.Config.MemoryMB = defaultVMMemoryInMB
 	spec.Location.Datastore = types.NewReference(s.Datastore.Reference())
 	spec.Location.Pool = types.NewReference(s.ResourcePool.Reference())
 	spec.PowerOn = false // Do not turn machine on until after metadata reconfiguration
