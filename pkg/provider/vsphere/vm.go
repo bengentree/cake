@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/netapp/cake/pkg/provider/vsphere/cloudinit"
@@ -26,6 +27,7 @@ type cloneSpec struct {
 func (s *Session) CloneTemplates(clonesSpec ...cloneSpec) (map[string]*object.VirtualMachine, error) {
 	numVMs := len(clonesSpec)
 	result := make(map[string]*object.VirtualMachine, numVMs)
+	resultMutex := sync.Mutex{}
 
 	var g errgroup.Group
 
@@ -44,7 +46,9 @@ func (s *Session) CloneTemplates(clonesSpec ...cloneSpec) (map[string]*object.Vi
 				if err != nil {
 					return err
 				}
+				resultMutex.Lock()
 				result[vm.name] = r
+				resultMutex.Unlock()
 				return nil
 			})
 		}

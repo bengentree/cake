@@ -11,6 +11,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 
 	pkgerrors "github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -30,6 +31,7 @@ func (s *Session) DeployOVATemplates(templatePaths ...string) (map[string]*objec
 	templatePaths = sliceDedup(templatePaths)
 	numOVAs := len(templatePaths)
 	result := make(map[string]*object.VirtualMachine, numOVAs)
+	resultMutex := sync.Mutex{}
 
 	var g errgroup.Group
 	for _, template := range templatePaths {
@@ -42,7 +44,9 @@ func (s *Session) DeployOVATemplates(templatePaths ...string) (map[string]*objec
 			if err != nil {
 				return err
 			}
+			resultMutex.Lock()
 			result[template] = r
+			resultMutex.Unlock()
 			return nil
 		})
 	}
