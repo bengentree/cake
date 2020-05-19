@@ -5,6 +5,9 @@ import (
 	"github.com/netapp/cake/pkg/progress"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +19,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -24,6 +28,7 @@ const (
 	defaultHostname    = "my.rancher.org"
 	certManagerCRDURL  = "https://github.com/jetstack/cert-manager/releases/download/v0.15.0/cert-manager.crds.yaml"
 	certManagerVersion = "v0.15.0"
+	rancherVersion     = "2.4.3"
 )
 
 // NewMgmtClusterCli creates a new cluster interface with a full config from the client
@@ -343,6 +348,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		"install",
 		"rancher",
 		fmt.Sprintf("%s/rancher", rVersion),
+		fmt.Sprintf("--version=%s", rancherVersion),
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 		"--set",
@@ -388,9 +394,14 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error waiting for nginx ingress: %s", err)
 	}
 
+	if err := c.rancherIssuerWorkaround(kubeCfg, namespace, kubeConfigFile); err != nil {
+		return fmt.Errorf("error attempting rancher issuer workaround: %s", err)
+	}
+
 	var workerNode string
+	workerPrefix := fmt.Sprintf("%s-%s", c.ClusterName, config.WorkerNode)
 	for k, v := range c.Nodes {
-		if strings.HasPrefix(k, config.WorkerNode) {
+		if strings.HasPrefix(k, workerPrefix) {
 			workerNode = v
 			break
 		}
@@ -412,4 +423,72 @@ func (c MgmtCluster) PivotControlPlane() error {
 // Events returns the channel of progress messages
 func (c MgmtCluster) Events() progress.Events {
 	return c.EventStream
+}
+
+func (c MgmtCluster) rancherIssuerWorkaround(kubeCfg *restclient.Config, ns, kubeCfgFile string) error {
+	err := waitForRancherIssuer(ns, kubeCfgFile)
+	if err == nil {
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  "rancher Issuer deployed successfully",
+		})
+		return nil
+	}
+
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("rancher Issuer failed to deploy, recreating: %s", err),
+	})
+
+	client, err := dynamic.NewForConfig(kubeCfg)
+	if err != nil {
+		return fmt.Errorf("unable to create dynamic k8s client: %s", err)
+	}
+
+	issuerRes := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1alpha2",
+		Resource: "issuers",
+	}
+
+	// https://github.com/rancher/rancher/blob/master/chart/templates/issuer-rancher.yaml
+	issuer := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cert-manager.io/v1alpha2",
+			"kind":       "Issuer",
+			"metadata": map[string]interface{}{
+				"name": "rancher",
+				"labels": map[string]interface{}{
+					"app":      "rancher",
+					"chart":    fmt.Sprintf("rancher-%s", rancherVersion),
+					"heritage": "Helm",
+					"release":  "rancher",
+				},
+			},
+			"spec": map[string]interface{}{
+				"ca": map[string]interface{}{
+					"secretName": "tls-rancher",
+				},
+			},
+		},
+	}
+
+	_, err = client.Resource(issuerRes).Namespace(ns).Create(issuer, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("unable to create issuer resource: %s", err)
+	}
+	return waitForRancherIssuer(ns, kubeCfgFile)
+}
+
+func waitForRancherIssuer(ns, kubeCfg string) error {
+	args := []string{
+		"wait",
+		"issuer",
+		"rancher",
+		"--for",
+		"condition=ready",
+		fmt.Sprintf("--namespace=%s", ns),
+		fmt.Sprintf("--kubeconfig=%s", kubeCfg),
+	}
+	return cmd.GenericExecute(nil, "kubectl", args, nil)
 }
