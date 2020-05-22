@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"github.com/nats-io/go-nats"
-	"github.com/netapp/cake/pkg/progress"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/nats-io/go-nats"
+	"github.com/netapp/cake/pkg/progress"
 
 	"gopkg.in/yaml.v3"
 
@@ -23,7 +24,6 @@ import (
 )
 
 var (
-	logLevel                string
 	deploymentType          string
 	localDeploy             bool
 	progressEndpointEnabled bool
@@ -58,7 +58,7 @@ var deployCmd = &cobra.Command{
 }
 
 func init() {
-	deployCmd.Flags().BoolVarP(&localDeploy, "local", "l", false, "Run the engine locally")
+	deployCmd.Flags().BoolVar(&localDeploy, "local", false, "Run the engine locally")
 	deployCmd.Flags().BoolVarP(&progressEndpointEnabled, "progress", "p", false, "Serve progress from HTTP endpoint")
 	deployCmd.Flags().StringVarP(&deploymentType, "deployment-type", "d", "", "The type of deployment to create (capv, rke)")
 	deployCmd.PersistentFlags().StringVarP(&specFile, "spec-file", "f", "", "Location of cluster-spec file corresponding to the cluster, default is at ~/.cake/<cluster name>/spec.yaml")
@@ -110,7 +110,11 @@ func runProvider() {
 		if errJ != nil {
 			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 		}
-		clusterName = vsProvider.ClusterName
+		if vsProvider.ClusterName != "" {
+			clusterName = vsProvider.ClusterName
+		} else {
+			vsProvider.ClusterName = clusterName
+		}
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
 		vsProvider.LogDir = specPath
@@ -135,13 +139,12 @@ func runProvider() {
 	// this is an async method
 	err = status.Subscribe(fn)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("error getting events: %v", err.Error())
 	}
 
 	err = provider.Run(bootstrap)
 	if err != nil {
-		log.Error("error encountered during bootstrap")
-		log.Fatal(err.Error())
+		log.Fatalf("error encountered during bootstrap: %v", err.Error())
 	}
 }
 
@@ -189,7 +192,11 @@ func runEngine() {
 			if errJ != nil {
 				log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 			}
-			clusterName = engine.ClusterName
+			if engine.ClusterName != "" {
+				clusterName = engine.ClusterName
+			} else {
+				engine.ClusterName = clusterName
+			}
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
 			engine.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
@@ -206,7 +213,11 @@ func runEngine() {
 			if errJ != nil {
 				log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 			}
-			clusterName = engine.ClusterName
+			if engine.ClusterName != "" {
+				clusterName = engine.ClusterName
+			} else {
+				engine.ClusterName = clusterName
+			}
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
 			engine.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)

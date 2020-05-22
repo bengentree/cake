@@ -205,13 +205,13 @@ func (v *MgmtBootstrap) createFolders() error {
 		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
 		v.Session.Folder = fromConfig[filepath.Base(v.Folder)]
 	} else {
-		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, mgmtFolder))
+		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, v.ClusterName))
 		if err != nil {
 			return err
 		}
 		v.TrackedResources.addTrackedFolder(tempFolder)
-		v.Folder = tempFolder[mgmtFolder].InventoryPath
-		v.Session.Folder = tempFolder[mgmtFolder]
+		v.Folder = tempFolder[v.ClusterName].InventoryPath
+		v.Session.Folder = tempFolder[v.ClusterName]
 	}
 	return nil
 }

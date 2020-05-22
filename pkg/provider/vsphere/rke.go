@@ -34,7 +34,6 @@ func (v *MgmtBootstrapRKE) Prepare() error {
 	if err != nil {
 		return err
 	}
-	// TODO make prereqs less hacky than this
 	v.Prerequisites = fmt.Sprintf(rkePrereqs, v.SSH.Username)
 	return v.prepareRKE(configYAML)
 }

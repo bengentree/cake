@@ -2,10 +2,11 @@ package engine
 
 import (
 	"fmt"
-	"github.com/netapp/cake/pkg/progress"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/netapp/cake/pkg/progress"
 
 	"github.com/netapp/cake/pkg/config/cluster"
 )

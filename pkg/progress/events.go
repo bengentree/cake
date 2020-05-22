@@ -2,10 +2,11 @@ package progress
 
 import (
 	"fmt"
+	"time"
+
 	natsd "github.com/nats-io/nats-server/server"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 // StatusEvent is type that is used for pub/sub of events

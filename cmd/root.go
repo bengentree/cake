@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"os"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 type settings struct {
@@ -22,11 +23,12 @@ type settings struct {
 var (
 	cliSettings         settings
 	envSettings         settings
-	cfgFile             string
 	clusterName         string
 	specContents        []byte
 	specFile            string
 	specPath            string
+	jsonLogging         bool
+	verbose             bool
 	defaultSpecFileName = "spec.yaml"
 	defaultSpecDir      = ".cake"
 )
@@ -50,12 +52,10 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, logInit, initSpecFile)
 	rootCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster, if unspecified will auto generate a directory in ~/.cake/")
-	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		logInit()
-		return nil
-	}
+	rootCmd.PersistentFlags().BoolVarP(&jsonLogging, "json", "j", false, "Enable json logging")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose logging")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -66,4 +66,11 @@ func initConfig() {
 
 func logInit() {
 	log.SetOutput(os.Stdout)
+	if verbose {
+		log.SetReportCaller(true)
+		log.SetLevel(log.DebugLevel)
+	}
+	if jsonLogging {
+		log.SetFormatter(&log.JSONFormatter{})
+	}
 }

@@ -2,15 +2,16 @@ package rkecli
 
 import (
 	"fmt"
-	"github.com/netapp/cake/pkg/progress"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/netapp/cake/pkg/progress"
+	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/config/vsphere"

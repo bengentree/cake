@@ -42,7 +42,6 @@ var genconfigCmd = &cobra.Command{
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	cobra.OnInitialize(initSpecFile)
 	rootCmd.AddCommand(genconfigCmd)
 }
 
