@@ -2,6 +2,7 @@ package vsphere
 
 import (
 	"fmt"
+
 	"github.com/netapp/cake/pkg/progress"
 
 	"gopkg.in/yaml.v3"
@@ -92,7 +93,7 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 	}
 	err = uploadFilesToBootstrap(bootstrapVMIP, string(configYAML))
 	if err != nil {
-		return err
+		return fmt.Errorf("error uploading files to bootstrapper: %v", err)
 	}
 
 	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType), remoteConfigRoot)

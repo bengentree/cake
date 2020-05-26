@@ -17,6 +17,7 @@ func newNodeBaseScript(base, deploymentType string) *baseScript {
 func (b *baseScript) MakeNodeBootstrapper() {
 	lines := []string{
 		bootstrapNodeCommandsHeader,
+		retryFunction,
 		installSocatCmd,
 		fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable),
 		fmt.Sprintf(uploadFileCmd, uploadConfigPort, remoteConfigRoot),

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -10,7 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/dustinkirkland/golang-petname"
+	log "github.com/sirupsen/logrus"
+
+	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/gookit/color"
 	"github.com/netapp/cake/pkg/config/types"
 	"github.com/spf13/cobra"
@@ -48,7 +49,7 @@ func init() {
 func initSpecFile() {
 	if clusterName == "" {
 		clusterName = petname.Generate(2, "-")
-		log.Infof("generated a cluster name:  %s\n", clusterName)
+		log.Infof("generated a cluster name:  %s", clusterName)
 	}
 	initSpecDir()
 
@@ -64,7 +65,7 @@ func fileExists(fn string) bool {
 func initSpecDir() {
 	specPath = filepath.Join(cakeBaseDirPath(), clusterName)
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		log.Infof("creating config directory: %s\n", specPath)
+		log.Infof("creating config directory: %s", specPath)
 		os.MkdirAll(specPath, 0700)
 	}
 
@@ -76,7 +77,7 @@ func runEasyConfig() {
 	if fileExists(clusterSpec) {
 		log.Fatal("A cluster spec file already exists for the cluster-name specified, please use another name or delete the existing spec.yml file")
 	}
-	log.Infof("creating spec file based on user input: %s\n", clusterSpec)
+	log.Infof("creating spec file based on user input: %s", clusterSpec)
 	var spec = &types.ConfigSpec{}
 	spec.ClusterName = clusterName
 	configure(spec)

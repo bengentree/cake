@@ -3,17 +3,18 @@ package vsphere
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path"
+	"path/filepath"
+	"time"
+
 	"github.com/netapp/cake/pkg/config/cluster"
 	vsphereConfig "github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/provider"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/object"
-	"io/ioutil"
-	"net/http"
-	"path"
-	"path/filepath"
-	"time"
 )
 
 // Session holds govmomi connection details
@@ -97,7 +98,7 @@ func (v *MgmtBootstrap) Progress() error {
 	var err error
 	var completedSuccessfully bool
 	var respStruct progress.Status
-	var progressMessages []string
+	var progressMessages []progress.StatusEvent
 	var msgLen int
 
 	for {
@@ -111,11 +112,7 @@ func (v *MgmtBootstrap) Progress() error {
 		currentProgressMessages := respStruct.Messages
 		msgLen = len(progressMessages)
 		for x := msgLen; x < len(currentProgressMessages); x++ {
-			v.EventStream.Publish(&progress.StatusEvent{
-				Type:  "progress",
-				Msg:   respStruct.Messages[x],
-				Level: "info",
-			})
+			v.EventStream.Publish(&respStruct.Messages[x])
 			progressMessages = append(progressMessages, respStruct.Messages[x])
 		}
 		if respStruct.Complete {
@@ -159,7 +156,7 @@ func (v *MgmtBootstrap) Finalize() error {
 
 	v.EventStream.Publish(&progress.StatusEvent{
 		Type:  "progress",
-		Msg:   fmt.Sprintf("all files from the cluster deployment can be found here: %s/", downloadDir),
+		Msg:   fmt.Sprintf("Cake deployment files saved to directory: %s/", downloadDir),
 		Level: "info",
 	})
 	return err

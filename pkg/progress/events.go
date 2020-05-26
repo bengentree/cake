@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,18 +12,27 @@ import (
 
 // StatusEvent is type that is used for pub/sub of events
 type StatusEvent struct {
-	Type  string
-	Msg   string
-	Level string
+	Type  string `json:"type"`
+	Msg   string `json:"msg"`
+	Level string `json:"level"`
 }
 
 // String of StatusEvent
 func (s StatusEvent) String() string {
-	return fmt.Sprintf("type: %v, msg: %v, level: %v", s.Type, s.Msg, s.Level)
+	return fmt.Sprintf(`{"type": "%v", "msg": "%v", "level": "%v"}`, s.Type, s.Msg, s.Level)
 }
 
 // ToLogrusFields is a helper for the logrus library
 func (s StatusEvent) ToLogrusFields() logrus.Fields {
+	var t StatusEvent
+	err := json.Unmarshal([]byte(s.Msg), &t)
+	if err == nil {
+		return logrus.Fields{
+			"type":  t.Type,
+			"msg":   t.Msg,
+			"level": t.Level,
+		}
+	}
 	return logrus.Fields{"type": s.Type, "msg": s.Msg, "level": s.Level}
 }
 

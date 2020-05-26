@@ -56,7 +56,8 @@ func (c *CommandSession) Execute() ([]byte, []byte, error) {
 	defer filehandle.Close()
 
 	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
+	timeout := 20 * time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, c.CommandLine.CommandName, c.CommandLine.Args...)
@@ -71,7 +72,7 @@ func (c *CommandSession) Execute() ([]byte, []byte, error) {
 	}
 	err = cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("command timed out: %v %v", c.CommandLine.CommandName, strings.Join(c.CommandLine.Args, " "))
+		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("command timed out after %s: %v %v", timeout, c.CommandLine.CommandName, strings.Join(c.CommandLine.Args, " "))
 	}
 	if err != nil {
 		return stdout.Bytes(), stderr.Bytes(), err
@@ -82,14 +83,8 @@ func (c *CommandSession) Execute() ([]byte, []byte, error) {
 
 // Exists checks if a command is in the $PATH var
 func (c *CommandSession) Exists() bool {
-	var err error
-
-	_, err = exec.LookPath(c.CommandLine.CommandName)
-	if err != nil {
-		return false
-	}
-
-	return true
+	_, err := exec.LookPath(c.CommandLine.CommandName)
+	return err == nil
 }
 
 // Program is the only method executed for the CommandLine
@@ -241,12 +236,12 @@ func (c *ProvisionerCommands) NotInPath() []string {
 	if currentNode == nil {
 		return result
 	}
-	if exists := currentNode.Actions.Program().Exists(); exists != true {
+	if !currentNode.Actions.Program().Exists() {
 		result = append(result, currentNode.Name)
 	}
 	for currentNode.next != nil {
 		currentNode = currentNode.next
-		if exists := currentNode.Actions.Program().Exists(); exists != true {
+		if !currentNode.Actions.Program().Exists() {
 			result = append(result, currentNode.Name)
 		}
 	}

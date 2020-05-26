@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -22,9 +21,9 @@ const (
 var responseBody *Status
 
 type Status struct {
-	Complete              bool     `json:"complete"`
-	CompletedSuccessfully bool     `json:"completedSuccessfully"`
-	Messages              []string `json:"messages"`
+	Complete              bool          `json:"complete"`
+	CompletedSuccessfully bool          `json:"completedSuccessfully"`
+	Messages              []StatusEvent `json:"messages"`
 }
 
 type DeliverableInfo struct {
@@ -42,13 +41,13 @@ func UpdateProgressCompletedSuccessfully(completedSuccessfully bool) {
 
 func init() {
 	responseBody = new(Status)
-	responseBody.Messages = []string{}
+	responseBody.Messages = []StatusEvent{}
 }
 
 func Serve(logfile string, ip, port string, status Events, fileDeliverables []string) {
 	fullURL := url.URL{Scheme: "http", Host: ip + ":" + port, Path: ""}
 	fn := func(p *StatusEvent) {
-		responseBody.Messages = append(responseBody.Messages, fmt.Sprintf("%v", p.String()))
+		responseBody.Messages = append(responseBody.Messages, *p)
 	}
 	if status != nil {
 		status.Subscribe(fn)
@@ -56,6 +55,12 @@ func Serve(logfile string, ip, port string, status Events, fileDeliverables []st
 
 	http.HandleFunc(URIProgress, func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(responseBody)
+	})
+	fullURL.Path = URIProgress
+	status.Publish(&StatusEvent{
+		Type:  "progress",
+		Msg:   fmt.Sprintf("serving progress at %v", fullURL.String()),
+		Level: "debug",
 	})
 	http.HandleFunc(URILogs, func(w http.ResponseWriter, r *http.Request) {
 		logs, _ := ioutil.ReadFile(logfile)
@@ -95,12 +100,6 @@ func Serve(logfile string, ip, port string, status Events, fileDeliverables []st
 		json.NewEncoder(w).Encode(dv)
 	})
 	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-func ServeDuration() {
-	for x := 0; x <= 24; x++ {
-		time.Sleep(1 * time.Hour)
-	}
 }
 
 func DownloadTxtFile(url string, downloadLocation string) error {

@@ -56,8 +56,9 @@ type MgmtCluster struct {
 // InstallAddons to HA RKE cluster
 func (c MgmtCluster) InstallAddons() error {
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "TODO: install addons",
+		Type:  "progress",
+		Msg:   "TODO: install addons",
+		Level: "debug",
 	})
 	return nil
 }
@@ -65,8 +66,9 @@ func (c MgmtCluster) InstallAddons() error {
 // RequiredCommands provides validation for required commands
 func (c MgmtCluster) RequiredCommands() []string {
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "TODO: provide required commands",
+		Type:  "progress",
+		Msg:   "TODO: provide required commands",
+		Level: "debug",
 	})
 	return nil
 }
@@ -74,8 +76,9 @@ func (c MgmtCluster) RequiredCommands() []string {
 // CreateBootstrap is not needed for rkecli
 func (c MgmtCluster) CreateBootstrap() error {
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "CreateBootstrap nothing to do...",
+		Type:  "progress",
+		Msg:   "CreateBootstrap - nothing to do",
+		Level: "debug",
 	})
 	return nil
 }
@@ -83,8 +86,9 @@ func (c MgmtCluster) CreateBootstrap() error {
 // InstallControlPlane helm installs rancher server
 func (c *MgmtCluster) InstallControlPlane() error {
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "InstallControlPlan nothing to do...",
+		Type:  "progress",
+		Msg:   "InstallControlPlane - nothing to do",
+		Level: "debug",
 	})
 	return nil
 }
@@ -101,21 +105,24 @@ func (c *MgmtCluster) Spec() engine.MgmtCluster {
 // CreatePermanent deploys HA RKE cluster to provided nodes
 func (c *MgmtCluster) CreatePermanent() error {
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "install HA rke cluster",
+		Type:  "progress",
+		Msg:   "Installing HA RKE cluster",
+		Level: "info",
 	})
 
 	if c.RKEConfigPath == "" {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  fmt.Sprintf("RKEConfigPath not provided in cake config, defaulting to %s", defaultConfigPath),
+			Type:  "progress",
+			Msg:   fmt.Sprintf("RKEConfigPath not provided in cake config, defaulting to %s", defaultConfigPath),
+			Level: "debug",
 		})
 		c.RKEConfigPath = defaultConfigPath
 	}
 	if c.Hostname == "" {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  fmt.Sprintf("Hostname not provided in cake config, defaulting to %s", defaultHostname),
+			Type:  "progress",
+			Msg:   fmt.Sprintf("Hostname not provided in cake config, defaulting to %s", defaultHostname),
+			Level: "debug",
 		})
 		c.Hostname = defaultHostname
 	}
@@ -155,8 +162,9 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 	if len(nodes) == 1 {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  "Non-HA RKE deployment, at least 3 nodes recommended",
+			Type:  "progress",
+			Msg:   "Non-HA RKE deployment detected, at least 3 nodes recommended",
+			Level: "debug",
 		})
 		nodes[0].Role = []string{"controlplane", "worker", "etcd"}
 	}
@@ -215,8 +223,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error adding rancher helm chart: %s", err)
 	}
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  fmt.Sprintf("added %s helm chart", rVersion),
+		Type:  "progress",
+		Msg:   fmt.Sprintf("Added %s Helm chart repo", rVersion),
+		Level: "info",
 	})
 	args = []string{
 		"repo",
@@ -240,8 +249,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error adding jetstack helm chart: %s", err)
 	}
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "added cert-manager helm chart",
+		Type:  "progress",
+		Msg:   "Added cert-manager Helm chart",
+		Level: "info",
 	})
 
 	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
@@ -261,8 +271,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 	})
 	if err != nil {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  fmt.Sprintf("Suppressing error creating %s namespace: %s", namespace, err.Error()),
+			Type:  "progress",
+			Msg:   fmt.Sprintf("Suppressing error creating %s namespace: %s", namespace, err.Error()),
+			Level: "debug",
 		})
 	}
 
@@ -273,14 +284,16 @@ func (c MgmtCluster) PivotControlPlane() error {
 	})
 	if err != nil {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  fmt.Sprintf("Suppressing error creating cert-manager namespace: %s", err.Error()),
+			Type:  "progress",
+			Msg:   fmt.Sprintf("Suppressing error creating cert-manager namespace: %s", err.Error()),
+			Level: "debug",
 		})
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "created namespaces",
+		Type:  "progress",
+		Msg:   fmt.Sprintf("Created %v namespace", namespace),
+		Level: "info",
 	})
 
 	args = []string{
@@ -294,8 +307,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error installing cert-manager CRD: %s", err)
 	}
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "installed cert-manager CRD",
+		Type:  "progress",
+		Msg:   "Installed cert-manager CRD",
+		Level: "info",
 	})
 
 	args = []string{
@@ -308,8 +322,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error updating helm charts: %s", err)
 	}
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "updated helm chart",
+		Type:  "progress",
+		Msg:   "Updated Helm Repos",
+		Level: "info",
 	})
 
 	args = []string{
@@ -325,13 +340,15 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error installing cert-manager helm chart: %s", err)
 	}
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "helm installed cert-manager",
+		Type:  "progress",
+		Msg:   "Helm installed cert-manager",
+		Level: "info",
 	})
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "waiting for cert-manager to be ready",
+		Type:  "progress",
+		Msg:   "Waiting for cert-manager to be ready",
+		Level: "info",
 	})
 	args = []string{
 		"rollout",
@@ -346,8 +363,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "helm installing rancher",
+		Type:  "progress",
+		Msg:   "Helm installing Rancher",
+		Level: "info",
 	})
 	args = []string{
 		"install",
@@ -362,14 +380,16 @@ func (c MgmtCluster) PivotControlPlane() error {
 	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  fmt.Sprintf("suppressing error running rancher helm install: %s", err),
+			Type:  "progress",
+			Msg:   fmt.Sprintf("Suppressing error running rancher helm install: %s", err.Error()),
+			Level: "debug",
 		})
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "waiting for rancher to be ready",
+		Type:  "progress",
+		Msg:   "Waiting for Rancher to be ready",
+		Level: "info",
 	})
 	args = []string{
 		"rollout",
@@ -384,8 +404,9 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  "waiting for nginx ingress to be ready",
+		Type:  "progress",
+		Msg:   "Waiting for nginx ingress to be ready",
+		Level: "info",
 	})
 	args = []string{
 		"rollout",
@@ -396,7 +417,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	err = cmd.GenericExecute(nil, "kubectl", args, nil)
 	if err != nil {
-		return fmt.Errorf("error waiting for nginx ingress: %s", err)
+		return fmt.Errorf("error waiting for nginx ingress: %s", err.Error())
 	}
 
 	if err := c.rancherIssuerWorkaround(kubeCfg, namespace, kubeConfigFile); err != nil {
@@ -415,12 +436,14 @@ func (c MgmtCluster) PivotControlPlane() error {
 	rServerURL := fmt.Sprintf("https://%s", c.Hostname)
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  fmt.Sprintf("Make sure hostname %s resolves to %s or a worker node IP", c.Hostname, workerNode),
+		Type:  "progress",
+		Msg:   fmt.Sprintf("Make sure hostname %s resolves to %s or a worker node IP", c.Hostname, workerNode),
+		Level: "info",
 	})
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  fmt.Sprintf("HA rancher install complete: %s", rServerURL),
+		Type:  "progress",
+		Msg:   fmt.Sprintf("HA Rancher install complete: %s", rServerURL),
+		Level: "info",
 	})
 	return nil
 }
@@ -434,20 +457,22 @@ func (c MgmtCluster) rancherIssuerWorkaround(kubeCfg *restclient.Config, ns, kub
 	err := waitForRancherIssuer(ns, kubeCfgFile)
 	if err == nil {
 		c.EventStream.Publish(&progress.StatusEvent{
-			Type: "progress",
-			Msg:  "rancher Issuer deployed successfully",
+			Type:  "progress",
+			Msg:   "Rancher Issuer deployed successfully",
+			Level: "info",
 		})
 		return nil
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
-		Type: "progress",
-		Msg:  fmt.Sprintf("rancher Issuer failed to deploy, recreating: %s", err),
+		Type:  "progress",
+		Msg:   fmt.Sprintf("Rancher Issuer failed to deploy, recreating: %s", err.Error()),
+		Level: "info",
 	})
 
 	client, err := dynamic.NewForConfig(kubeCfg)
 	if err != nil {
-		return fmt.Errorf("unable to create dynamic k8s client: %s", err)
+		return fmt.Errorf("unable to create dynamic k8s client: %s", err.Error())
 	}
 
 	issuerRes := schema.GroupVersionResource{
