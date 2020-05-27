@@ -2,6 +2,7 @@ package vsphere
 
 import (
 	"fmt"
+
 	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/util/ssh"
@@ -34,7 +35,7 @@ func (v *MgmtBootstrapRKE) Prepare() error {
 	if err != nil {
 		return err
 	}
-	v.Prerequisites = fmt.Sprintf(rkePrereqs, v.SSH.Username)
+	v.Prerequisites = fmt.Sprintf(rkePrereqs, v.SSH.Username, v.KubernetesVersion)
 	return v.prepareRKE(configYAML)
 }
 
@@ -42,6 +43,11 @@ func (v *MgmtBootstrapRKE) Prepare() error {
 func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 	mFolder := v.Session.Folder
 	v.Session.Folder = v.TrackedResources.Folders[templatesFolder]
+	v.EventStream.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Deploying OVA(s)",
+		Level: "info",
+	})
 	ovas, err := v.Session.DeployOVATemplates(v.OVA.BootstrapTemplate, v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
 	if err != nil {
 		return err
@@ -89,6 +95,11 @@ func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 		}
 		nodes = append(nodes, spec)
 	}
+	v.EventStream.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Deploying VMs",
+		Level: "info",
+	})
 	vmsCreated, err := v.Session.CloneTemplates(nodes...)
 	for name, vm := range vmsCreated {
 		v.TrackedResources.addTrackedVM(map[string]*object.VirtualMachine{name: vm})
@@ -101,6 +112,11 @@ func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 func (v *MgmtBootstrapRKE) Provision() error {
 	var bootstrapVMIP string
 	v.Nodes = map[string]string{}
+	v.EventStream.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Waiting for VMs to get IP addresses",
+		Level: "info",
+	})
 	for name, vm := range v.TrackedResources.VMs {
 		vmIP, err := GetVMIP(vm)
 		if err != nil {

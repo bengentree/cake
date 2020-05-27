@@ -1,12 +1,15 @@
 package vsphere
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"net/http"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/netapp/cake/pkg/config/cluster"
@@ -131,6 +134,23 @@ func (v *MgmtBootstrap) Progress() error {
 // Finalize handles saving deliverables and cleaning up the bootstrap VM
 func (v *MgmtBootstrap) Finalize() error {
 	var err error
+
+	// remove seed.iso from all VMs
+	var g errgroup.Group
+	for _, elem := range v.TrackedResources.VMs {
+		vm := elem
+		g.Go(func() error {
+			return deleteSeedISO(v, vm)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		v.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   fmt.Sprintf("error deleting seed iso: err: %v", err),
+			Level: "info",
+		})
+	}
+
 	url := fmt.Sprintf("http://%s:8081", v.BootstrapperIP)
 	downloadDir := v.LogDir
 	// save log file to disk
@@ -160,6 +180,52 @@ func (v *MgmtBootstrap) Finalize() error {
 		Level: "info",
 	})
 	return err
+}
+
+func deleteSeedISO(v *MgmtBootstrap, elem *object.VirtualMachine) error {
+	var err error
+	fm := v.Session.Datastore.NewFileManager(v.Session.Datacenter, true)
+	remove := fm.DeleteFile
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		dev, _ := elem.Device(ctx)
+		cdDev, err := dev.FindCdrom("")
+		if err != nil {
+			v.EventStream.Publish(&progress.StatusEvent{
+				Type:  "progress",
+				Msg:   fmt.Sprintf("error finding cdrom on %v: err: %v", elem.Name(), err),
+				Level: "info",
+			})
+		}
+		elem.EditDevice(ctx, dev.EjectIso(cdDev))
+		err = remove(ctx, elem.Name()+"/"+seedISOName)
+		if err != nil {
+			v.EventStream.Publish(&progress.StatusEvent{
+				Type:  "progress",
+				Msg:   fmt.Sprintf("error removing %s from %v: err: %v", seedISOName, elem.Name(), err),
+				Level: "info",
+			})
+		}
+	}(&wg)
+
+	for i := 1; i <= 10; i++ {
+		err = answerQuestion(v.Session.Conn.Client, elem, "0")
+		if err == nil {
+			break
+		}
+		time.Sleep(2 * time.Second)
+		if i == 10 {
+			cancel()
+			return fmt.Errorf("error timed out answering cdrom eject question from %v: err: %v", elem.Name(), err)
+		}
+	}
+	wg.Wait()
+	return nil
 }
 
 // Events returns the channel of progress messages

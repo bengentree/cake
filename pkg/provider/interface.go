@@ -54,7 +54,7 @@ func Run(b Bootstrapper) error {
 		Msg:   "Preparing environment",
 		Level: "info",
 	})
-	defer b.Finalize()
+	defer finalize(b)
 	err = b.Prepare()
 	if err != nil {
 		return err
@@ -77,11 +77,16 @@ func Run(b Bootstrapper) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func finalize(b Bootstrapper) {
+	log := b.Events()
 	log.Publish(&progress.StatusEvent{
 		Type:  "progress",
 		Msg:   "Finalizing",
 		Level: "info",
 	})
-
-	return nil
+	b.Finalize()
 }

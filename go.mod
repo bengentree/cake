@@ -13,6 +13,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/gookit/color v1.2.4
+	github.com/kdomanski/iso9660 v0.0.0-20200519215215-812ccb67a0ab
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0

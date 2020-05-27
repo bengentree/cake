@@ -1,13 +1,16 @@
 package vsphere
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/netapp/cake/pkg/util/cloudinit"
+	"github.com/vmware/govmomi/vim25/soap"
+
 	"sync"
 	"time"
 
-	"github.com/netapp/cake/pkg/provider/vsphere/cloudinit"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/sync/errgroup"
@@ -69,41 +72,43 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
 
-	cloudinitUserDataConfig, err := cloudinit.GenerateUserData(bootScript, publicKeys, osUser)
+	cloudinitUserDataConfig, err := generateUserData(bootScript, publicKeys, osUser)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate user data, %v", err)
 	}
-	cloudinitMetaDataConfig, err := cloudinit.GenerateMetaData(name)
+	cloudinitMetaDataConfig, err := generateMetaData(name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate metadata, %v", err)
 	}
 
+	// TODO make cpu and memory configurable
+	// spec.config.NumCPUs = int32
+	// spec.config.MemoryMB = int64
 	spec := types.VirtualMachineCloneSpec{}
 	spec.Config = &types.VirtualMachineConfigSpec{}
 	spec.Config.ExtraConfig = append(spec.Config.ExtraConfig, cloudinitUserDataConfig...)
 	spec.Config.ExtraConfig = append(spec.Config.ExtraConfig, cloudinitMetaDataConfig...)
-	/*
-		TODO make cpu and memory configurable
-		spec.Config.NumCPUs = int32
-		spec.Config.MemoryMB = int64
-	*/
 	spec.Config.MemoryMB = defaultVMMemoryInMB
 	spec.Location.Datastore = types.NewReference(s.Datastore.Reference())
 	spec.Location.Pool = types.NewReference(s.ResourcePool.Reference())
-	spec.PowerOn = false // Do not turn machine on until after metadata reconfiguration
+	spec.PowerOn = false // need to attach cloudinit iso first
 	spec.Location.DiskMoveType = string(types.VirtualMachineRelocateDiskMoveOptionsMoveAllDiskBackingsAndConsolidate)
-
 	vmProps, err := getProperties(template)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get virtual machine properties, %v", err)
 	}
-
 	l := object.VirtualDeviceList(vmProps.Config.Hardware.Device)
-
 	deviceSpecs := []types.BaseVirtualDeviceConfigSpec{}
-
+	// Remove any existing cdrom devices on the source vm
+	cdroms := l.SelectByType((*types.VirtualCdrom)(nil))
+	for _, dev := range cdroms {
+		cdr := dev.GetVirtualDevice()
+		cdrspec := &types.VirtualDeviceConfigSpec{}
+		cdrspec.Operation = types.VirtualDeviceConfigSpecOperationRemove
+		cdrspec.Device = cdr
+		deviceSpecs = append(deviceSpecs, cdrspec)
+	}
 	nics := l.SelectByType((*types.VirtualEthernetCard)(nil))
-
 	// Remove any existing nics on the source vm
 	for _, dev := range nics {
 		nic := dev.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
@@ -112,7 +117,6 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 		nicspec.Device = nic
 		deviceSpecs = append(deviceSpecs, nicspec)
 	}
-
 	nic := types.VirtualVmxnet3{}
 	nic.Backing, err = s.Network.EthernetCardBackingInfo(ctx)
 	if err != nil {
@@ -125,38 +129,50 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 
 	spec.Config.DeviceChange = deviceSpecs
 
-	// log.Debugf("cloning %s with spec: %+v", name, spec)
 	task, err := template.Clone(ctx, s.Folder, name, spec)
 	if err != nil {
 		return nil, fmt.Errorf("unable to clone template, %v", err)
 	}
-
 	err = task.Wait(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("clone task failed, %v", err)
+	}
+
+	// create and upload the seed iso
+	metadata, err := cloudinitMetaDataConfig.getMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cloudinit metadata: err: %v", err)
+	}
+	userdata, err := cloudinitUserDataConfig.getUserdata()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cloudinit userdata: err: %v", err)
+	}
+	seedContents, err := cloudinit.GenerateSeedISO(userdata, metadata)
+	if err != nil {
+		return nil, fmt.Errorf("error creating %s: err: %v", seedISOName, err)
+	}
+	seedReader := bytes.NewReader(seedContents)
+	err = s.Datastore.Upload(ctx, seedReader, name+"/"+seedISOName, &soap.DefaultUpload)
+	if err != nil {
+		return nil, fmt.Errorf("error uploading %s to vcenter: err: %v", seedISOName, err)
 	}
 
 	vm, err := s.GetVM(name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find virtual machine, %v", err)
 	}
-
-	err = task.Wait(ctx)
+	err = addCDROMWithISOtoVM(vm, ctx, name, s)
 	if err != nil {
-		return nil, fmt.Errorf("reconfigure task failed, %v", err)
+		return nil, fmt.Errorf("error adding cdrom with seed iso to %s, err: %v", vm.Name(), err)
 	}
-
-	// log.Debugf("powering on %s", name)
 	task, err = vm.PowerOn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to power on VM, %v", err)
 	}
-
 	err = task.Wait(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("power on task failed, %v", err)
 	}
-
 	return vm, nil
 }
 

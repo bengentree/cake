@@ -466,8 +466,13 @@ func (c MgmtCluster) rancherIssuerWorkaround(kubeCfg *restclient.Config, ns, kub
 
 	c.EventStream.Publish(&progress.StatusEvent{
 		Type:  "progress",
-		Msg:   fmt.Sprintf("Rancher Issuer failed to deploy, recreating: %s", err.Error()),
+		Msg:   fmt.Sprintf("Creating Rancher Issuer"),
 		Level: "info",
+	})
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   fmt.Sprintf("Rancher Issuer failed to deploy, recreating: %s", err.Error()),
+		Level: "debug",
 	})
 
 	client, err := dynamic.NewForConfig(kubeCfg)

@@ -3,6 +3,7 @@ package vsphere
 import (
 	"context"
 	"fmt"
+	"github.com/vmware/govmomi/property"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -95,4 +96,47 @@ func hasCreationTask(taskInfos []vim25types.TaskInfo) bool {
 		}
 	}
 	return false
+}
+
+func answerQuestion(client *vim25.Client, vm *object.VirtualMachine, answer string) error {
+	ctx := context.TODO()
+	var mvm mo.VirtualMachine
+
+	pc := property.DefaultCollector(client)
+	err := pc.RetrieveOne(ctx, vm.Reference(), []string{"runtime.question"}, &mvm)
+	if err != nil {
+		return fmt.Errorf("error getting vmware question: err: %v", err)
+	}
+	q := mvm.Runtime.Question
+	if q == nil {
+		return fmt.Errorf("no pending question")
+	}
+
+	return vm.Answer(ctx, q.Id, answer)
+}
+
+func addCDROMWithISOtoVM(vm *object.VirtualMachine, ctx context.Context, name string, s *Session) error {
+	// add cloudinit iso to cdrom
+	devices, err := vm.Device(ctx)
+	if err != nil {
+		return fmt.Errorf("get devices failed, %v", err)
+	}
+	// ide-200 is the default VirtualIDEController name
+	ideCont, err := devices.FindIDEController("ide-200")
+	if err != nil {
+		return fmt.Errorf("error finding ide controller: err: %v", err)
+	}
+	cdCreated, err := devices.CreateCdrom(ideCont)
+	if err != nil {
+		return fmt.Errorf("error creating new cdrom: err: %v", err)
+	}
+	cdWithISO := devices.InsertIso(cdCreated, fmt.Sprintf("[%s] %s/%s", s.Datastore.Name(), name, seedISOName))
+	if err != nil {
+		return fmt.Errorf("error editing cdrom device: err: %v", err)
+	}
+	err = vm.AddDevice(ctx, cdWithISO)
+	if err != nil {
+		return fmt.Errorf("error adding device to VM: err: %v", err)
+	}
+	return nil
 }

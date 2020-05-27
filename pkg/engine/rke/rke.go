@@ -536,7 +536,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 		Name:                    c.ClusterName,
 		RancherKubernetesEngineConfig: &v3.RancherKubernetesEngineConfig{
 			AddonJobTimeout:     30,
-			Version:             c.KubernetesVersion,
+			Version:             c.KubernetesVersion + "-rancher1-3",
 			IgnoreDockerVersion: true,
 			SSHAgentAuth:        false,
 			Authentication: &v3.AuthnConfig{

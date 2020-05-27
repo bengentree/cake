@@ -21,6 +21,7 @@ const (
 	mgmtFolder                  string = "mgmt"
 	bootstrapFolder             string = "bootstrap"
 	bootstrapVMName             string = "BootstrapVM"
+	seedISOName                 string = "seed.iso"
 	retryFunction               string = `# Retries a command on failure.
 # $1 - the max number of attempts
 # $2... - the command to run
@@ -67,7 +68,7 @@ sleep 2
 	rkeWorkerNodePrefix          string = "workerNode"
 	privateKeyToDisk             string = "umask 133; mkdir -p ~/.ssh && umask 177; touch ~/.ssh/id_rsa && echo -e \"%s\" > ~/.ssh/id_rsa"
 	rkeBinaryInstall             string = `retry 5 wget -O /usr/local/bin/rke https://github.com/rancher/rke/releases/download/v1.1.1/rke_linux-amd64 && chmod +x /usr/local/bin/rke`
-	rkePrereqs                   string = `curl https://releases.rancher.com/install-docker/18.09.2.sh | sh
+	rkePrereqs                   string = `sh -c 'curl https://releases.rancher.com/install-docker/18.09.2.sh | sh' || curl -L http://get.docker.com | sh
 for module in br_netfilter ip6_udp_tunnel ip_set ip_set_hash_ip ip_set_hash_net iptable_filter iptable_nat iptable_mangle iptable_raw nf_conntrack_netlink nf_conntrack nf_conntrack_ipv4   nf_defrag_ipv4 nf_nat nf_nat_ipv4 nf_nat_masquerade_ipv4 nfnetlink udp_tunnel veth vxlan x_tables xt_addrtype xt_conntrack xt_comment xt_mark xt_multiport xt_nat xt_recent xt_set  xt_statistic xt_tcpudp;
 do
 	if ! lsmod | grep -q $module; then
@@ -77,7 +78,10 @@ do
 done
 
 echo "net.bridge.bridge-nf-call-iptables=1" >> /etc/sysctl.conf
-usermod -aG docker %s`
+usermod -aG docker %s
+which kubectl || wget -O /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/%s/bin/linux/amd64/kubectl
+chmod +x /usr/local/bin/kubectl`
+
 	helmInstall string = `retry 5 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
 chmod 700 get_helm.sh
 ./get_helm.sh --version %s`
