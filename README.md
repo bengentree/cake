@@ -61,7 +61,7 @@ for extra items to install.
 
 ### deploy
 
-`cake deploy --deployment-type rke --name my-awesome-cluster --spec-file path/to/your/spec.yaml`
+`cake deploy rke --name my-awesome-cluster --spec-file path/to/your/spec.yaml`
 
 Will deploy the specified management cluster type to the provider specified in the spec file. Omit the `--spec-file` option and cake will look for the spec file in the directory of the cluster name (`~/.cake/my-awesome-cluster/spec.yaml`).
 

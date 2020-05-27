@@ -12,7 +12,7 @@ func TestCmd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//cakeCmd := fmt.Sprintf("%s deploy --local --deployment-type capv --config /root/.cake.yaml > /tmp/cake.out", remoteExecutable)
+	//cakeCmd := fmt.Sprintf("%s deploy --local capv --config /root/.cake.yaml > /tmp/cake.out", remoteExecutable)
 	cakeCmd := "getent passwd root > /tmp/env.log"
 	tcp.runAsyncCommand(cakeCmd)
 	t.Fail()

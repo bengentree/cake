@@ -229,7 +229,7 @@ func runEngine(engineType string) {
 			engineName = e
 		}
 	} else {
-		log.Fatal("Currently only implemented deployment-type is `capv`")
+		log.Fatalf("[%v] engine is not implemented. please use one of [capv, rke]", engineType)
 	}
 	log.WithFields(log.Fields{
 		"ClusterName":              clusterName,
