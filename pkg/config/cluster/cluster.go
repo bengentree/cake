@@ -19,6 +19,13 @@ type SSH struct {
 	KeyPath        string   `yaml:"KeyPath,omitempty" json:"keyPath,omitempty"`
 }
 
+// SSL configuration
+type SSL struct {
+	// PEM encoded certificate for private CA certs
+	Certificate string `yaml:"Certificate,omitempty" json:"Certificate,omitempty"`
+	PrivateCA   bool   `yaml:"PrivateCA,omitempty" json:"PrivateCA,omitempty"`
+}
+
 // Addons holds optional configuration values
 type Addons struct {
 	Observability ObservabilitySpec `yaml:"Observability,omitempty" json:"observability,omitempty"`

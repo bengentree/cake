@@ -65,6 +65,8 @@ type MgmtBootstrapRKE struct {
 	RKEConfigPath string            `yaml:"RKEConfigPath"`
 	Hostname      string            `yaml:"Hostname" json:"hostname"`
 	GeneratedKey  GeneratedKey      `yaml:"-" json:"-" mapstructure:"-"`
+	// SSL configuration defaults to Rancher-generated TLS certificate
+	SSL *cluster.SSL `yaml:"SSL,omitempty"`
 }
 
 // Client setups connection to remote vCenter

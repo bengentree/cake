@@ -2,8 +2,10 @@ package rkecli
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/config/cluster"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -51,6 +53,8 @@ type MgmtCluster struct {
 	RKEConfigPath           string            `yaml:"RKEConfigPath"`
 	Nodes                   map[string]string `yaml:"Nodes" json:"nodes"`
 	Hostname                string            `yaml:"Hostname"`
+	// SSL configuration defaults to Rancher-generated TLS certificate
+	SSL *cluster.SSL `yaml:"SSL,omitempty"`
 }
 
 // InstallAddons to HA RKE cluster
@@ -237,22 +241,24 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error reading helm chart: %s", err)
 	}
 
-	args = []string{
-		"repo",
-		"add",
-		"jetstack",
-		"https://charts.jetstack.io",
-		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	if c.SSL == nil {
+		args = []string{
+			"repo",
+			"add",
+			"jetstack",
+			"https://charts.jetstack.io",
+			fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		}
+		err = cmd.GenericExecute(nil, "helm", args, nil)
+		if err != nil {
+			return fmt.Errorf("error adding jetstack helm chart: %s", err)
+		}
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   "Added cert-manager Helm chart",
+			Level: "info",
+		})
 	}
-	err = cmd.GenericExecute(nil, "helm", args, nil)
-	if err != nil {
-		return fmt.Errorf("error adding jetstack helm chart: %s", err)
-	}
-	c.EventStream.Publish(&progress.StatusEvent{
-		Type:  "progress",
-		Msg:   "Added cert-manager Helm chart",
-		Level: "info",
-	})
 
 	kubeCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
 	if err != nil {
@@ -277,17 +283,20 @@ func (c MgmtCluster) PivotControlPlane() error {
 		})
 	}
 
-	_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "cert-manager",
-		},
-	})
-	if err != nil {
-		c.EventStream.Publish(&progress.StatusEvent{
-			Type:  "progress",
-			Msg:   fmt.Sprintf("Suppressing error creating cert-manager namespace: %s", err.Error()),
-			Level: "debug",
+	if c.SSL == nil {
+		_, err = kube.CoreV1().Namespaces().Create(&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "cert-manager",
+			},
 		})
+		if err != nil {
+			c.EventStream.Publish(&progress.StatusEvent{
+				Type:  "progress",
+				Msg:   fmt.Sprintf("Suppressing error creating cert-manager namespace: %s", err.Error()),
+				Level: "debug",
+			})
+		}
+
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
@@ -296,21 +305,23 @@ func (c MgmtCluster) PivotControlPlane() error {
 		Level: "info",
 	})
 
-	args = []string{
-		"apply",
-		"-f",
-		certManagerCRDURL,
-		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+	if c.SSL == nil {
+		args = []string{
+			"apply",
+			"-f",
+			certManagerCRDURL,
+			fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		}
+		err = cmd.GenericExecute(nil, "kubectl", args, nil)
+		if err != nil {
+			return fmt.Errorf("error installing cert-manager CRD: %s", err)
+		}
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   "Installed cert-manager CRD",
+			Level: "info",
+		})
 	}
-	err = cmd.GenericExecute(nil, "kubectl", args, nil)
-	if err != nil {
-		return fmt.Errorf("error installing cert-manager CRD: %s", err)
-	}
-	c.EventStream.Publish(&progress.StatusEvent{
-		Type:  "progress",
-		Msg:   "Installed cert-manager CRD",
-		Level: "info",
-	})
 
 	args = []string{
 		"repo",
@@ -327,39 +338,41 @@ func (c MgmtCluster) PivotControlPlane() error {
 		Level: "info",
 	})
 
-	args = []string{
-		"install",
-		"cert-manager",
-		"jetstack/cert-manager",
-		fmt.Sprintf("--namespace=cert-manager"),
-		fmt.Sprintf("--version=%s", certManagerVersion),
-		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
-	}
-	err = cmd.GenericExecute(nil, "helm", args, nil)
-	if err != nil {
-		return fmt.Errorf("error installing cert-manager helm chart: %s", err)
-	}
-	c.EventStream.Publish(&progress.StatusEvent{
-		Type:  "progress",
-		Msg:   "Helm installed cert-manager",
-		Level: "info",
-	})
+	if c.SSL == nil {
+		args = []string{
+			"install",
+			"cert-manager",
+			"jetstack/cert-manager",
+			fmt.Sprintf("--namespace=cert-manager"),
+			fmt.Sprintf("--version=%s", certManagerVersion),
+			fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		}
+		err = cmd.GenericExecute(nil, "helm", args, nil)
+		if err != nil {
+			return fmt.Errorf("error installing cert-manager helm chart: %s", err)
+		}
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   "Helm installed cert-manager",
+			Level: "info",
+		})
 
-	c.EventStream.Publish(&progress.StatusEvent{
-		Type:  "progress",
-		Msg:   "Waiting for cert-manager to be ready",
-		Level: "info",
-	})
-	args = []string{
-		"rollout",
-		"status",
-		"deploy/cert-manager",
-		"--namespace=cert-manager",
-		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
-	}
-	err = cmd.GenericExecute(nil, "kubectl", args, nil)
-	if err != nil {
-		return fmt.Errorf("error waiting for cert-manager: %s", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   "Waiting for cert-manager to be ready",
+			Level: "info",
+		})
+		args = []string{
+			"rollout",
+			"status",
+			"deploy/cert-manager",
+			"--namespace=cert-manager",
+			fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		}
+		err = cmd.GenericExecute(nil, "kubectl", args, nil)
+		if err != nil {
+			return fmt.Errorf("error waiting for cert-manager: %s", err)
+		}
 	}
 
 	c.EventStream.Publish(&progress.StatusEvent{
@@ -367,6 +380,14 @@ func (c MgmtCluster) PivotControlPlane() error {
 		Msg:   "Helm installing Rancher",
 		Level: "info",
 	})
+	certManagerCompatVersion := certManagerVersion
+	ingressTLSSource := "rancher"
+	privateCA := false
+	if c.SSL != nil {
+		certManagerCompatVersion = ""
+		ingressTLSSource = "secret"
+		privateCA = c.SSL.PrivateCA
+	}
 	args = []string{
 		"install",
 		"rancher",
@@ -375,13 +396,29 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 		"--set",
-		fmt.Sprintf("%s,%s", fmt.Sprintf("hostname=%s", c.Hostname), fmt.Sprintf("certmanager.version=%s", certManagerVersion)),
+		fmt.Sprintf("%s,%s,%s,%s",
+			fmt.Sprintf("hostname=%s", c.Hostname),
+			fmt.Sprintf("certmanager.version=%s", certManagerCompatVersion),
+			fmt.Sprintf("ingress.tls.source=%s", ingressTLSSource),
+			fmt.Sprintf("privateCA=%s", privateCA),
+		),
 	}
 	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
 		c.EventStream.Publish(&progress.StatusEvent{
 			Type:  "progress",
 			Msg:   fmt.Sprintf("Suppressing error running rancher helm install: %s", err.Error()),
+			Level: "debug",
+		})
+	}
+
+	if c.SSL != nil {
+		if err := c.addTLSSecret(namespace, kubeConfigFile); err != nil {
+			return fmt.Errorf("unable to add TLS secrets: %v", err)
+		}
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   "TLS secret created",
 			Level: "debug",
 		})
 	}
@@ -420,8 +457,10 @@ func (c MgmtCluster) PivotControlPlane() error {
 		return fmt.Errorf("error waiting for nginx ingress: %s", err.Error())
 	}
 
-	if err := c.rancherIssuerWorkaround(kubeCfg, namespace, kubeConfigFile); err != nil {
-		return fmt.Errorf("error attempting rancher issuer workaround: %s", err)
+	if c.SSL == nil {
+		if err := c.rancherIssuerWorkaround(kubeCfg, namespace, kubeConfigFile); err != nil {
+			return fmt.Errorf("error attempting rancher issuer workaround: %s", err)
+		}
 	}
 
 	var workerNode string
@@ -451,6 +490,45 @@ func (c MgmtCluster) PivotControlPlane() error {
 // Events returns the channel of progress messages
 func (c MgmtCluster) Events() progress.Events {
 	return c.EventStream
+}
+
+func (c MgmtCluster) addTLSSecret(namespace, kubeConfigFile string) error {
+	if !c.SSL.PrivateCA {
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   "WARNING: public CA not yet supported, manually add TLS secrets!",
+			Level: "info",
+		})
+		return nil
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		exe = "/tmp/cake"
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   fmt.Sprintf("Suppressing error getting the executable, defaulting to '%s': %v", exe, err),
+			Level: "info",
+		})
+	}
+	certFile := path.Join(path.Dir(exe), "cacerts.pem")
+	if err := ioutil.WriteFile(certFile, []byte(c.SSL.Certificate), 0644); err != nil {
+		return fmt.Errorf("error writing the cert to file %s: %v", certFile, err)
+	}
+
+	args := []string{
+		"create",
+		"secret",
+		"generic",
+		"tls-ca",
+		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
+		fmt.Sprintf("--from-file=%s", certFile),
+	}
+	if err := cmd.GenericExecute(nil, "kubectl", args, nil); err != nil {
+		return fmt.Errorf("error creating the private TLS CA: %v", err)
+	}
+	return nil
 }
 
 func (c MgmtCluster) rancherIssuerWorkaround(kubeCfg *restclient.Config, ns, kubeCfgFile string) error {
